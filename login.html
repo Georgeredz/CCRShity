@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Log In — CCRS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="ccrs.css">
+  <style>
+.auth-layout {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas: "image form";
+}
+
+.auth-form-panel {
+  grid-area: form;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 3rem 4rem;
+  background: var(--cream);
+  position: relative;
+  z-index: 1;
+}
+
+.auth-image-panel { grid-area: image; }
+.auth-back {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  font-size: 0.8rem; font-weight: 600; color: var(--smoke);
+  text-decoration: none; margin-bottom: 3rem;
+  transition: color 0.2s;
+}
+.auth-back:hover { color: var(--leaf); }
+.auth-back svg { width: 0.875rem; height: 0.875rem; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.auth-logo { display: flex; align-items: center; gap: 0.625rem; margin-bottom: 2.5rem; }
+.auth-form-heading { margin-bottom: 2rem; }
+.auth-form-heading h1 { font-family: var(--font-disp); font-size: 1.875rem; font-weight: 900; color: var(--ink); letter-spacing: -0.025em; margin-bottom: 0.5rem; }
+.auth-form-heading p { font-size: 0.9rem; color: var(--smoke); line-height: 1.65; }
+.auth-form { display: flex; flex-direction: column; gap: 1.125rem; }
+.auth-form-footer { margin-top: 1.5rem; text-align: center; font-size: 0.82rem; color: var(--smoke); }
+.auth-form-footer a { color: var(--leaf); font-weight: 700; text-decoration: none; }
+.auth-form-footer a:hover { text-decoration: underline; }
+.auth-divider { display: flex; align-items: center; gap: 0.75rem; margin: 0.25rem 0; }
+.auth-divider span { font-size: 0.72rem; color: var(--smoke); white-space: nowrap; }
+.auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* Demo credentials card */
+.demo-box {
+  margin-top: 1.25rem;
+  padding: 1rem 1.125rem;
+  background: var(--mist);
+  border: 1px solid var(--border);
+  border-radius: 0.875rem;
+  display: flex; flex-direction: column; gap: 0.5rem;
+}
+.demo-box-title { font-size: 0.72rem; font-weight: 800; color: var(--smoke); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 0.125rem; }
+.demo-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.demo-label { font-size: 0.75rem; font-weight: 600; color: var(--ink); }
+.demo-creds { font-size: 0.75rem; color: var(--smoke); font-family: ui-monospace, monospace; }
+.demo-fill { background: none; border: none; font-size: 0.72rem; font-weight: 700; color: var(--leaf); text-decoration: underline; cursor: pointer; padding: 0; font-family: inherit; transition: opacity 0.15s; }
+.demo-fill:hover { opacity: 0.7; }
+
+/* ── Right: Image panel ─ */
+.auth-image-panel {
+  position: relative;
+  overflow: hidden;
+}
+.auth-image-bg {
+  position: absolute; inset: 0;
+  background-image: url('garbage.jpg');
+  background-size: cover;
+  background-position: center;
+  transform: scale(1.04);
+  transition: transform 8s ease;
+}
+.auth-image-panel:hover .auth-image-bg { transform: scale(1); }
+.auth-image-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(
+    155deg,
+    rgba(9,28,14,0.75) 0%,
+    rgba(15,52,35,0.6) 50%,
+    rgba(9,44,24,0.5) 100%
+  );
+}
+.auth-image-content {
+  position: relative; z-index: 1;
+  height: 100%;
+  display: flex; flex-direction: column;
+  justify-content: flex-end;
+  padding: 3rem;
+}
+.auth-image-quote {
+  font-family: var(--font-disp);
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-style: italic;
+  color: #fff;
+  line-height: 1.45;
+  margin-bottom: 0.875rem;
+  max-width: 24rem;
+}
+.auth-image-quote-mark { color: var(--sage); font-size: 2rem; line-height: 1; display: block; margin-bottom: 0.25rem; }
+.auth-image-attr { font-size: 0.78rem; color: rgba(255,255,255,0.55); font-weight: 500; }
+
+/* Stats strip */
+.auth-image-stats {
+  display: flex; gap: 1.5rem;
+  margin-bottom: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255,255,255,0.12);
+  margin-top: 1.5rem;
+}
+.auth-stat-item { text-align: center; }
+.auth-stat-num { font-family: var(--font-disp); font-size: 1.5rem; font-weight: 900; color: var(--sage); line-height: 1; }
+.auth-stat-lbl { font-size: 0.68rem; color: rgba(255,255,255,0.5); margin-top: 0.2rem; font-weight: 500; }
+
+@media (max-width: 768px) {
+  .auth-layout { grid-template-columns: 1fr; }
+  .auth-image-panel { display: none; }
+  .auth-form-panel { padding: 2rem 1.5rem; justify-content: flex-start; padding-top: 3rem; }
+}
+@media (max-width: 400px) {
+  .auth-form-panel { padding: 1.5rem 1.25rem; }
+}
+  </style>
+</head>
+<body>
+<div class="auth-layout">
+
+  <!-- ── Form Panel ──────────────────────────────────────────── -->
+  <div class="auth-form-panel">
+    <a href="index.html" class="auth-back">
+      <svg viewBox="0 0 24 24"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+      Back to Home
+    </a>
+
+    <div class="auth-form-heading">
+      <h1>Welcome back</h1>
+      <p>Sign in to your CCRS account to submit reports and track community issues.</p>
+    </div>
+
+    <form class="auth-form" id="loginForm" novalidate>
+      <div class="form-group">
+        <label class="form-label" for="email">Email Address</label>
+        <input type="email" id="email" class="form-input" placeholder="you@example.com" autocomplete="email" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <div class="input-wrap">
+          <input type="password" id="password" class="form-input" placeholder="Your password" autocomplete="current-password" required>
+          <button type="button" class="input-action password-toggle" id="pwToggle" aria-label="Show password">
+            <svg id="pwEye" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-primary full-width" id="loginBtn" style="margin-top:0.25rem;">
+        <svg style="width:1rem;height:1rem;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+        Log In
+      </button>
+    </form>
+
+    <div class="auth-form-footer">
+      Don't have an account? <a href="register.html">Create one — it's free</a>
+    </div>
+
+    <div class="demo-box">
+      <div class="demo-box-title">Demo Accounts</div>
+      <div class="demo-row">
+        <div>
+          <div class="demo-label">Admin / Official</div>
+          <div class="demo-creds">admin@ccrs.ph · admin123</div>
+        </div>
+        <button class="demo-fill" onclick="fillDemo('admin@ccrs.ph','admin123')">Fill</button>
+      </div>
+      <div class="demo-row">
+        <div>
+          <div class="demo-label">Resident</div>
+          <div class="demo-creds">user@ccrs.ph · password</div>
+        </div>
+        <button class="demo-fill" onclick="fillDemo('user@ccrs.ph','password')">Fill</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Image Panel ─────────────────────────────────────────── -->
+  <div class="auth-image-panel">
+    <div class="auth-image-bg"></div>
+    <div class="auth-image-overlay"></div>
+    <div class="auth-image-content">
+      <blockquote class="auth-image-quote">
+        <span class="auth-image-quote-mark">"</span>
+        A clean community starts with a single voice willing to speak up.
+      </blockquote>
+      <div class="auth-image-attr">— CCRS Community Platform</div>
+      <div class="auth-image-stats">
+        <div class="auth-stat-item"><div class="auth-stat-num" id="img-total">—</div><div class="auth-stat-lbl">Reports Filed</div></div>
+        <div class="auth-stat-item"><div class="auth-stat-num" id="img-resolved">—</div><div class="auth-stat-lbl">Issues Resolved</div></div>
+        <div class="auth-stat-item"><div class="auth-stat-num" id="img-rate">—</div><div class="auth-stat-lbl">Resolution Rate</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="ccrs-core.js"></script>
+<script>
+  // Fill demo credentials
+  window.fillDemo = function(email, pw) {
+    document.getElementById('email').value = email;
+    document.getElementById('password').value = pw;
+    document.getElementById('loginBtn').focus();
+  };
+
+  // Password toggle
+  const pwToggle = document.getElementById('pwToggle');
+  const pwInput  = document.getElementById('password');
+  const eyeOpen  = `<svg viewBox="0 0 24 24" style="width:1rem;height:1rem;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+  const eyeClose = `<svg viewBox="0 0 24 24" style="width:1rem;height:1rem;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.86 21.86 0 0 1 5.06-6.02"/><path d="M1 1l22 22"/><path d="M9.88 9.88a3 3 0 0 0 4.24 4.24"/></svg>`;
+  pwToggle.addEventListener('click', () => {
+    const show = pwInput.type === 'password';
+    pwInput.type = show ? 'text' : 'password';
+    pwToggle.innerHTML = show ? eyeClose : eyeOpen;
+    pwToggle.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+  });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    // Redirect if already logged in
+    if (window.storage.isAuthenticated()) {
+      const u = window.storage.getCurrentUser();
+      const redirect = new URLSearchParams(window.location.search).get('redirect');
+      if (redirect) {
+        window.location.href = redirect;
+      } else {
+        window.location.href = u?.role === 'admin' ? 'admin-dashboard.html' : 'resident-dashboard.html';
+      }
+      return;
+    }
+
+    // Load stats for image panel
+    const stats = window.storage.getUserStats();
+    document.getElementById('img-total').textContent    = stats.total;
+    document.getElementById('img-resolved').textContent = stats.resolved;
+    document.getElementById('img-rate').textContent     = stats.resolutionRate + '%';
+
+    const form = document.getElementById('loginForm');
+    const btn  = document.getElementById('loginBtn');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      btn.disabled = true;
+      btn.innerHTML = `<svg style="width:1rem;height:1rem;stroke:currentColor;fill:none;stroke-width:2;animation:spin 0.7s linear infinite;" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Signing in…`;
+
+      const email = document.getElementById('email').value.trim();
+      const pw    = document.getElementById('password').value;
+      const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+      if (!email || !emailOk) {
+        window.CCRSUTILS.showNotification('Please enter a valid email address.', 'error');
+        btn.disabled = false;
+        btn.innerHTML = `<svg style="width:1rem;height:1rem;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> Log In`;
+        return;
+      }
+
+      await new Promise(r => setTimeout(r, 400));
+
+      const user = window.storage.login(email, pw);
+      const redirect = new URLSearchParams(window.location.search).get('redirect');
+      if (user) {
+        window.CCRSUTILS.showNotification(`Welcome back! Redirecting…`, 'success');
+        const dest = redirect || (user.role === 'admin' ? 'admin-dashboard.html' : 'resident-dashboard.html');
+        setTimeout(() => { window.location.href = dest; }, 900);
+      } else {
+        btn.disabled = false;
+        btn.innerHTML = `<svg style="width:1rem;height:1rem;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> Log In`;
+        window.CCRSUTILS.showNotification('Invalid email or password. Please try again.', 'error');
+        document.getElementById('password').value = '';
+        document.getElementById('password').focus();
+      }
+    });
+  });
+</script>
+</body>
+</html>

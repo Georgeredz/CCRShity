@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resident Dashboard — CCRS</title>
+  <meta name="description" content="Manage your community reports and stay updated with announcements.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="ccrs.css">
+  <script src="ccrs-core.js" defer></script>
+  
+  <style>
+    /* ═══════════════════════════════════════════════════════════════
+       RESIDENT DASHBOARD — Comprehensive Design System
+       ═══════════════════════════════════════════════════════════════ */
+
+    /* ── Layout & Structure ────────────────────────────────────── */
+    .dashboard {
+      min-height: 100vh;
+      background: var(--cream);
+      padding-top: 4.5rem;
+    }
+
+    .dashboard-container {
+      max-width: 90rem;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    /* ── Header Section ────────────────────────────────────────── */
+    .dashboard-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      margin-bottom: 3rem;
+      padding-bottom: 2rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .header-left h1 {
+      font-family: var(--font-disp);
+      font-size: clamp(1.5rem, 4vw, 2.25rem);
+      font-weight: 900;
+      color: var(--ink);
+      letter-spacing: -0.02em;
+      margin-bottom: 0.5rem;
+    }
+
+    .header-left p {
+      font-size: 0.95rem;
+      color: var(--smoke);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .header-greeting {
+      color: var(--leaf);
+      font-weight: 600;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .btn-secondary {
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.75rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border: 1.5px solid var(--border);
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+      transition: all 0.25s;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: var(--font-body);
+    }
+
+    .btn-secondary:hover {
+      background: var(--mist);
+      border-color: var(--leaf);
+      color: var(--leaf);
+    }
+
+    .btn-primary {
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.75rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border: none;
+      background: var(--leaf);
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.25s;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: var(--font-body);
+      box-shadow: 0 4px 12px rgba(26, 107, 60, 0.3);
+    }
+
+    .btn-primary:hover {
+      background: var(--leaf-d);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(26, 107, 60, 0.4);
+    }
+
+    /* ── Quick Stats ───────────────────────────────────────────── */
+    .stats-section {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 3rem;
+    }
+
+    .stat-box {
+      background: #fff;
+      border-radius: 1rem;
+      padding: 1.5rem;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--border);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-box::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--leaf), var(--leaf-l));
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .stat-box:hover {
+      box-shadow: var(--shadow);
+      transform: translateY(-4px);
+    }
+
+    .stat-box:hover::before {
+      opacity: 1;
+    }
+
+    .stat-box-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+
+    .stat-box-label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--smoke);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .stat-box-icon {
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+    }
+
+    .stat-box-icon.reports {
+      background: rgba(34, 197, 94, 0.15);
+      color: var(--leaf);
+    }
+
+
+
+    .stat-box-icon.alerts {
+      background: rgba(249, 158, 11, 0.15);
+      color: var(--gold);
+    }
+
+    .stat-box-icon.pending {
+      background: rgba(217, 119, 6, 0.15);
+      color: var(--amber);
+    }
+
+    .stat-box-value {
+      font-family: var(--font-disp);
+      font-size: 2.5rem;
+      font-weight: 900;
+      color: var(--ink);
+      line-height: 1;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-box-sub {
+      font-size: 0.85rem;
+      color: var(--smoke);
+    }
+
+    /* ── Main Grid Layout ──────────────────────────────────────── */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      margin-bottom: 3rem;
+    }
+
+    .dashboard-grid.wide-right {
+      grid-template-columns: 1fr 1.4fr;
+    }
+
+    @media (max-width: 768px) {
+      .dashboard-grid.wide-right {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ── Card Component ────────────────────────────────────────── */
+    .card {
+      background: #fff;
+      border-radius: 1.125rem;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      transition: all 0.3s;
+    }
+
+    .card:hover {
+      box-shadow: var(--shadow);
+    }
+
+    .card-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-header h2 {
+      font-family: var(--font-disp);
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--ink);
+      letter-spacing: -0.01em;
+      margin: 0;
+    }
+
+    .card-header-action {
+      font-size: 0.8rem;
+      color: var(--leaf);
+      font-weight: 600;
+      text-decoration: none;
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.5rem;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+
+    .card-header-action:hover {
+      background: var(--mist);
+    }
+
+    .card-body {
+      padding: 1.5rem;
+    }
+
+    .card-footer {
+      padding: 1.5rem;
+      border-top: 1px solid var(--border);
+      text-align: center;
+    }
+
+    /* ── Profile Summary ───────────────────────────────────────── */
+    .profile-card {
+      text-align: center;
+    }
+
+    .profile-avatar {
+      width: 6rem;
+      height: 6rem;
+      border-radius: 0.875rem;
+      margin: 0 auto 1.25rem;
+      background: linear-gradient(135deg, var(--leaf), var(--leaf-l));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.5rem;
+      box-shadow: 0 4px 16px rgba(26, 107, 60, 0.3);
+    }
+
+    .profile-name {
+      font-family: var(--font-disp);
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--ink);
+      margin-bottom: 0.25rem;
+    }
+
+    .profile-email {
+      font-size: 0.85rem;
+      color: var(--smoke);
+      margin-bottom: 1.5rem;
+    }
+
+    .profile-stat {
+      display: flex;
+      justify-content: space-around;
+      padding: 1rem 0;
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      margin-bottom: 1.5rem;
+      background: var(--mist);
+    }
+
+    .profile-stat-item {
+      text-align: center;
+    }
+
+    .profile-stat-value {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--leaf);
+      line-height: 1;
+    }
+
+    .profile-stat-label {
+      font-size: 0.7rem;
+      color: var(--smoke);
+      text-transform: uppercase;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      margin-top: 0.3rem;
+    }
+
+    .profile-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    /* ── Recent Reports List ───────────────────────────────────── */
+    .reports-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .report-item-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      padding: 1rem;
+      border-radius: 0.875rem;
+      border: 1px solid var(--border);
+      background: #fff;
+      cursor: pointer;
+      transition: all 0.25s;
+    }
+
+    .report-item-card:hover {
+      background: var(--mist);
+      border-color: var(--leaf);
+    }
+
+    .report-status-badge {
+      flex-shrink: 0;
+      width: 3rem;
+      height: 3rem;
+      border-radius: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .status-pending {
+      background: rgba(249, 158, 11, 0.15);
+      color: var(--gold);
+    }
+
+    .status-approved {
+      background: rgba(34, 197, 94, 0.15);
+      color: var(--leaf);
+    }
+
+    .status-resolved {
+      background: rgba(34, 197, 94, 0.25);
+      color: var(--leaf-d);
+    }
+
+    .status-rejected {
+      background: rgba(239, 68, 68, 0.15);
+      color: #dc2626;
+    }
+
+    .report-item-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .report-item-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 0.3rem;
+    }
+
+    .report-item-meta {
+      font-size: 0.8rem;
+      color: var(--smoke);
+      margin-bottom: 0.4rem;
+    }
+
+    .report-item-status {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      border-radius: 100px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      background: var(--mist);
+      color: var(--leaf);
+    }
+
+    .report-item-status.status-pending {
+      background: rgba(249, 158, 11, 0.15);
+      color: var(--gold);
+    }
+
+    .report-item-status.status-approved {
+      background: rgba(34, 197, 94, 0.15);
+      color: var(--leaf);
+    }
+
+    .report-item-status.status-resolved {
+      background: rgba(34, 197, 94, 0.25);
+      color: var(--leaf-d);
+    }
+
+
+
+    .empty-state {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: var(--smoke);
+    }
+
+    .empty-state-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    .empty-state-title {
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 0.5rem;
+    }
+
+    /* ── Notifications ─────────────────────────────────────────── */
+    .notification-item {
+      display: flex;
+      gap: 0.75rem;
+      padding: 1rem;
+      border-radius: 0.875rem;
+      background: var(--mist);
+      border-left: 3px solid var(--leaf);
+      margin-bottom: 0.75rem;
+      transition: all 0.25s;
+    }
+
+    .notification-item:hover {
+      background: rgba(26, 107, 60, 0.08);
+    }
+
+    .notification-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .notification-icon {
+      flex-shrink: 0;
+      width: 2rem;
+      height: 2rem;
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+    }
+
+    .notification-icon.info {
+      background: rgba(14, 165, 233, 0.15);
+      color: var(--sky);
+    }
+
+    .notification-icon.success {
+      background: rgba(34, 197, 94, 0.15);
+      color: var(--leaf);
+    }
+
+    .notification-icon.warning {
+      background: rgba(249, 158, 11, 0.15);
+      color: var(--gold);
+    }
+
+    .notification-icon.alert {
+      background: rgba(239, 68, 68, 0.15);
+      color: #dc2626;
+    }
+
+    .notification-content h4 {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 0.2rem;
+    }
+
+    .notification-content p {
+      font-size: 0.8rem;
+      color: var(--smoke);
+      line-height: 1.4;
+    }
+
+    .notification-time {
+      font-size: 0.7rem;
+      color: var(--smoke);
+      margin-top: 0.3rem;
+      opacity: 0.7;
+    }
+
+    /* ── Quick Action Grid ─────────────────────────────────────── */
+    .quick-actions {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+    }
+
+    .action-card {
+      padding: 1.25rem;
+      border-radius: 0.875rem;
+      text-align: center;
+      background: #fff;
+      border: 1.5px solid var(--border);
+      cursor: pointer;
+      transition: all 0.25s;
+      text-decoration: none;
+      color: var(--ink);
+    }
+
+    .action-card:hover {
+      border-color: var(--leaf);
+      background: var(--mist);
+      transform: translateY(-4px);
+    }
+
+    .action-icon {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .action-text {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    /* ── Badge & Status Utility ────────────────────────────────── */
+    .badge {
+      display: inline-block;
+      padding: 0.3rem 0.7rem;
+      border-radius: 100px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+
+    .badge-success {
+      background: rgba(34, 197, 94, 0.15);
+      color: var(--leaf);
+    }
+
+    .badge-warning {
+      background: rgba(249, 158, 11, 0.15);
+      color: var(--gold);
+    }
+
+    .badge-info {
+      background: rgba(14, 165, 233, 0.15);
+      color: var(--sky);
+    }
+
+    /* ── Responsive Design ─────────────────────────────────────── */
+    @media (max-width: 1024px) {
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .dashboard-grid.wide-right {
+        grid-template-columns: 1fr;
+      }
+
+      .stats-section {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 640px) {
+      .dashboard-container {
+        padding: 1rem;
+      }
+
+      .dashboard-header {
+        gap: 1rem;
+      }
+
+      .header-left h1 {
+        font-size: 1.5rem;
+      }
+
+      .header-actions {
+        width: 100%;
+        gap: 0.5rem;
+      }
+
+      .btn-secondary,
+      .btn-primary {
+        flex: 1;
+        justify-content: center;
+      }
+
+      .stats-section {
+        grid-template-columns: 1fr;
+      }
+
+      .profile-stat {
+        gap: 0.5rem;
+      }
+
+      .card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+      }
+
+      .quick-actions {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    /* ── Animation Effects ─────────────────────────────────────── */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .dashboard-header,
+    .stats-section,
+    .dashboard-grid {
+      animation: fadeInUp 0.6s ease-out;
+    }
+
+    .card {
+      animation: fadeInUp 0.6s ease-out;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation (Shared) -->
+  <nav class="nav">
+    <a href="index.html" class="nav-brand">
+      <div class="nav-brand-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24">
+          <path d="M12 2L2 7V12C2 16.5 12 22 12 22S22 16.5 22 12V7L12 2Z" />
+        </svg>
+      </div>
+      <span class="nav-brand-text">
+        CCRS
+        <span class="nav-brand-sub">Dashboard</span>
+      </span>
+    </a>
+
+    <div class="nav-links">
+      <a href="index.html" class="nav-link">Home</a>
+      <a href="resident-dashboard.html" class="nav-link active">Dashboard</a>
+      <a href="report.html" class="nav-link">Report Issue</a>
+    </div>
+
+    <div class="nav-btns">
+      <a href="login.html" class="btn-ghost">Login</a>
+      <a href="register.html" class="btn-solid">Register</a>
+    </div>
+  </nav>
+
+  <!-- Main Dashboard -->
+  <main class="dashboard">
+    <div class="dashboard-container">
+      <!-- Header -->
+      <div class="dashboard-header">
+        <div class="header-left">
+          <h1>
+            Welcome back, <span class="header-greeting">Alex!</span>
+          </h1>
+          <p>📍 Here's your community activity at a glance</p>
+        </div>
+        <div class="header-actions">
+          <button class="btn-secondary">↓ Export Stats</button>
+          <button class="btn-primary">+ New Report</button>
+        </div>
+      </div>
+
+      <!-- Quick Stats Section -->
+      <section class="stats-section">
+        <div class="stat-box">
+          <div class="stat-box-header">
+            <span class="stat-box-label">Reports Submitted</span>
+            <div class="stat-box-icon reports">📋</div>
+          </div>
+          <div class="stat-box-value">12</div>
+          <p class="stat-box-sub">3 pending review</p>
+        </div>
+
+        <div class="stat-box">
+          <div class="stat-box-header">
+            <span class="stat-box-label">New Alerts</span>
+            <div class="stat-box-icon alerts">🔔</div>
+          </div>
+          <div class="stat-box-value">5</div>
+          <p class="stat-box-sub">2 require action</p>
+        </div>
+
+        <div class="stat-box">
+          <div class="stat-box-header">
+            <span class="stat-box-label">Resolved Issues</span>
+            <div class="stat-box-icon pending">✓</div>
+          </div>
+          <div class="stat-box-value">8</div>
+          <p class="stat-box-sub">This month</p>
+        </div>
+      </section>
+
+      <!-- Main Grid: Profile + Reports -->
+      <div class="dashboard-grid wide-right">
+        <!-- Profile Summary Card -->
+        <div class="card profile-card">
+          <div class="card-header">
+            <h2>Your Profile</h2>
+          </div>
+          <div class="card-body">
+            <div class="profile-avatar">👤</div>
+            <h3 class="profile-name">Alexandra Johnson</h3>
+            <p class="profile-email">alex.johnson@example.com</p>
+
+            <div class="profile-stat">
+              <div class="profile-stat-item">
+                <div class="profile-stat-value">4.8</div>
+                <div class="profile-stat-label">Rating</div>
+              </div>
+              <div class="profile-stat-item">
+                <div class="profile-stat-value">12</div>
+                <div class="profile-stat-label">Reports</div>
+              </div>
+              <div class="profile-stat-item">
+                <div class="profile-stat-value">2y</div>
+                <div class="profile-stat-label">Member</div>
+              </div>
+            </div>
+
+            <div class="profile-actions">
+              <button class="btn-secondary">✎ Edit Profile</button>
+              <button class="btn-secondary">🔒 Change Password</button>
+              <button class="btn-secondary">⚙️ Preferences</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Reports Card -->
+        <div class="card">
+          <div class="card-header">
+            <h2>Your Recent Reports</h2>
+            <a href="#" class="card-header-action">View All →</a>
+          </div>
+          <div class="card-body">
+            <div class="reports-list">
+              <!-- Report Item 1 -->
+              <div class="report-item-card">
+                <div class="report-status-badge status-pending">🔄</div>
+                <div class="report-item-content">
+                  <div class="report-item-title">Road Surface Deterioration</div>
+                  <div class="report-item-meta">📍 Main Street, Block A • Apr 1, 2025</div>
+                  <span class="report-item-status status-pending">Pending Review</span>
+                </div>
+              </div>
+
+              <!-- Report Item 2 -->
+              <div class="report-item-card">
+                <div class="report-status-badge status-approved">✓</div>
+                <div class="report-item-content">
+                  <div class="report-item-title">Debris Cleanup - Park Area</div>
+                  <div class="report-item-meta">📍 Community Park • Mar 28, 2025</div>
+                  <span class="report-item-status status-approved">Approved</span>
+                </div>
+              </div>
+
+              <!-- Report Item 3 -->
+              <div class="report-item-card">
+                <div class="report-status-badge status-resolved">✓✓</div>
+                <div class="report-item-content">
+                  <div class="report-item-title">Graffiti Removal</div>
+                  <div class="report-item-meta">📍 Downtown Street • Mar 15, 2025</div>
+                  <span class="report-item-status status-resolved">Resolved</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="card-footer">
+            <a href="report.html" style="color: var(--leaf); text-decoration: none; font-weight: 600;">
+              Submit a New Report →
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Announcements Grid -->
+      <div class="dashboard-grid">
+        <!-- Announcements Card -->
+        <div class="card">
+          <div class="card-header">
+            <h2>Announcements</h2>
+            <a href="#" class="card-header-action">All →</a>
+          </div>
+          <div class="card-body">
+            <div class="reports-list">
+              <!-- Notification 1 -->
+              <div class="notification-item">
+                <div class="notification-icon success">✓</div>
+                <div class="notification-content">
+                  <h4>Report #12 has been Resolved</h4>
+                  <p>Your graffiti removal report has been completed and approved.</p>
+                  <p class="notification-time">2 days ago</p>
+                </div>
+              </div>
+
+              <!-- Notification 2 -->
+              <div class="notification-item">
+                <div class="notification-icon info">ℹ️</div>
+                <div class="notification-content">
+                  <h4>Community Maintenance Schedule</h4>
+                  <p>Street cleaning scheduled for April 10-12. Expect minor delays.</p>
+                  <p class="notification-time">5 days ago</p>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions Section -->
+      <section style="margin-bottom: 3rem;">
+        <h2 style="font-family: var(--font-disp); font-size: 1.25rem; font-weight: 800; color: var(--ink); margin-bottom: 1.5rem; letter-spacing: -0.01em;">
+          Quick Actions
+        </h2>
+        <div class="quick-actions">
+          <a href="report.html" class="action-card">
+            <div class="action-icon">📝</div>
+            <div class="action-text">Submit Report</div>
+          </a>
+          <a href="#" class="action-card">
+            <div class="action-icon">📅</div>
+            <div class="action-text">Book Facility</div>
+          </a>
+          <a href="#" class="action-card">
+            <div class="action-icon">📊</div>
+            <div class="action-text">View Analytics</div>
+          </a>
+          <a href="#" class="action-card">
+            <div class="action-icon">💬</div>
+            <div class="action-text">Community Chat</div>
+          </a>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer style="background: var(--ink); color: #fff; padding: 3rem 2rem; text-align: center; margin-top: 4rem;">
+    <p style="margin-bottom: 0.5rem; font-size: 0.9rem;">
+      © 2025 Community Cleanliness Reporting System. All rights reserved.
+    </p>
+    <p style="font-size: 0.8rem; opacity: 0.7;">
+      <a href="#" style="color: var(--sage); text-decoration: none; margin: 0 0.75rem;">Privacy</a>
+      <span>•</span>
+      <a href="#" style="color: var(--sage); text-decoration: none; margin: 0 0.75rem;">Terms</a>
+      <span>•</span>
+      <a href="#" style="color: var(--sage); text-decoration: none; margin: 0 0.75rem;">Support</a>
+    </p>
+  </footer>
+
+  <!-- JavaScript for Interactivity -->
+  <script>
+    // ═══════════════════════════════════════════════════════════════
+    // RESIDENT DASHBOARD — Interactivity & Integration with ccrs-core
+    // ═══════════════════════════════════════════════════════════════
+
+    (function () {
+      'use strict';
+
+      // ── Wait for core to load ─────────────────────────────────
+      function waitForCore(callback, attempts = 0) {
+        if (window.storage && window.CCRSUTILS) {
+          callback();
+        } else if (attempts < 50) {
+          setTimeout(() => waitForCore(callback, attempts + 1), 100);
+        } else {
+          console.error('Cannot load ccrs-core.js');
+        }
+      }
+
+      // ── Configuration ─────────────────────────────────────────
+      const CONFIG = {
+        animationSpeed: 300,
+        storagePrefix: 'rd_',
+        updateInterval: 30000, // 30 seconds
+      };
+
+      // ── DOM References ────────────────────────────────────────
+      const dashboard = {
+        container: document.querySelector('.dashboard-container'),
+        header: document.querySelector('.dashboard-header'),
+        profileName: document.querySelector('.profile-name'),
+        profileEmail: document.querySelector('.profile-email'),
+        profileAvatar: document.querySelector('.profile-avatar'),
+        newReportBtn: document.querySelector('.btn-primary'),
+        exportBtn: document.querySelector('.btn-secondary'),
+        headerGreeting: document.querySelector('.header-greeting'),
+      };
+
+      // ── Auth Check & User Loading ──────────────────────────────
+
+      /**
+       * Check authentication and redirect if needed
+       */
+      function checkAuth() {
+        const user = window.storage.getCurrentUser();
+        if (!user) {
+          window.location.href = 'login.html?redirect=resident-dashboard.html';
+          return false;
+        }
+        return user;
+      }
+
+      /**
+       * Load and display current user data
+       */
+      function loadUserData() {
+        const user = checkAuth();
+        if (!user) return;
+
+        // Update header greeting
+        const firstName = user.firstName || 'Resident';
+        if (dashboard.headerGreeting) {
+          dashboard.headerGreeting.textContent = firstName;
+        }
+
+        // Update profile section
+        if (dashboard.profileName) {
+          dashboard.profileName.textContent = `${user.firstName} ${user.lastName}`.trim() || 'User Profile';
+        }
+        if (dashboard.profileEmail) {
+          dashboard.profileEmail.textContent = user.email;
+        }
+        if (dashboard.profileAvatar) {
+          const initials = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
+          dashboard.profileAvatar.textContent = initials || '👤';
+        }
+
+        // Update stats with actual data
+        updateDashboardStats(user);
+      }
+
+      /**
+       * Update dashboard statistics from storage
+       */
+      function updateDashboardStats(user) {
+        try {
+          const reports = window.storage.getReports() || [];
+          const userReports = reports.filter(r => r.userId === user.id || r.userId === 'guest');
+          
+          const stats = {
+            totalReports: userReports.length,
+            pendingReports: userReports.filter(r => r.status === 'pending').length,
+            approvedReports: userReports.filter(r => r.status === 'in-progress' || r.status === 'in_progress').length,
+            resolvedReports: userReports.filter(r => r.status === 'resolved').length,
+          };
+
+          // Update stat boxes
+          const statBoxes = document.querySelectorAll('.stat-box');
+          if (statBoxes.length >= 3) {
+            if (statBoxes[0].querySelector('.stat-box-value')) {
+              statBoxes[0].querySelector('.stat-box-value').textContent = stats.totalReports;
+              const sub = statBoxes[0].querySelector('.stat-box-sub');
+              if (sub) sub.textContent = `${stats.pendingReports} pending review`;
+            }
+            if (statBoxes[1].querySelector('.stat-box-value')) {
+              statBoxes[1].querySelector('.stat-box-value').textContent = '0'; // Alerts TBD
+              const sub = statBoxes[1].querySelector('.stat-box-sub');
+              if (sub) sub.textContent = '0 require action';
+            }
+            if (statBoxes[3].querySelector('.stat-box-value')) {
+              statBoxes[3].querySelector('.stat-box-value').textContent = stats.resolvedReports;
+              const sub = statBoxes[3].querySelector('.stat-box-sub');
+              if (sub) sub.textContent = `This month`;
+            }
+          }
+
+          // Populate recent reports
+          populateRecentReports(userReports);
+        } catch (err) {
+          console.error('Error updating stats:', err);
+        }
+      }
+
+      /**
+       * Populate recent reports in the card
+       */
+      function populateRecentReports(reports) {
+        const reportsList = document.querySelector('.reports-list');
+        if (!reportsList) return;
+
+        // Get first 3 reports
+        const recentReports = reports.slice(0, 3);
+
+        if (recentReports.length === 0) {
+          reportsList.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">📝</div>
+              <div class="empty-state-title">No reports yet</div>
+              <p>Start by submitting your first community report</p>
+            </div>
+          `;
+          return;
+        }
+
+        reportsList.innerHTML = recentReports.map(report => {
+          const statusInfo = window.CCRSUTILS.formatStatus(report.status);
+          const category = window.CCRSUTILS.CATEGORIES.find(c => c.id === report.category) || 
+                          { name: 'Other', id: 'other' };
+          const icon = getReportStatusIcon(report.status);
+          const date = window.CCRSUTILS.formatDate(report.timestamp);
+
+          return `
+            <div class="report-item-card" onclick="viewReport('${report.id}')">
+              <div class="report-status-badge ${statusInfo.cls || ''}">${icon}</div>
+              <div class="report-item-content">
+                <div class="report-item-title">${window.CCRSUTILS.escapeHtml(report.description.substring(0, 40))}...</div>
+                <div class="report-item-meta">📍 ${window.CCRSUTILS.escapeHtml(report.location)} • ${date}</div>
+                <span class="report-item-status ${statusInfo.cls || ''}">${statusInfo.label || 'Pending'}</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      /**
+       * Get icon for report status
+       */
+      function getReportStatusIcon(status) {
+        const icons = {
+          'pending': '⏳',
+          'in-progress': '🔄',
+          'in_progress': '🔄',
+          'resolved': '✓✓',
+        };
+        return icons[status] || '⏳';
+      }
+
+      // ── Event Listeners ───────────────────────────────────────
+
+      /**
+       * Initialize all event listeners
+       */
+      function initializeEventListeners() {
+        if (dashboard.newReportBtn) {
+          dashboard.newReportBtn.addEventListener('click', handleNewReport);
+        }
+
+        if (dashboard.exportBtn) {
+          dashboard.exportBtn.addEventListener('click', handleExportStats);
+        }
+
+        // Navigation scroll effect
+        setupNavbarScroll();
+
+        // Action buttons
+        document.querySelectorAll('.action-card').forEach(card => {
+          card.addEventListener('click', handleActionCard);
+        });
+
+        // Edit profile button
+        document.querySelectorAll('button').forEach(btn => {
+          if (btn.textContent.includes('Edit Profile')) {
+            btn.addEventListener('click', () => window.location.href = '#profile-settings');
+          }
+        });
+      }
+
+      /**
+       * Handle new report button click
+       */
+      function handleNewReport() {
+        window.location.href = 'report.html';
+      }
+
+      /**
+       * Handle action card clicks
+       */
+      function handleActionCard(e) {
+        const text = e.currentTarget.querySelector('.action-text')?.textContent || '';
+        if (text.includes('Report')) {
+          window.location.href = 'report.html';
+        } else if (text.includes('Dashboard')) {
+          const user = window.storage.getCurrentUser();
+          if (user && window.storage.isAdmin()) {
+            window.location.href = 'admin-dashboard.html';
+          }
+        }
+      }
+
+      /**
+       * Handle export statistics
+       */
+      function handleExportStats() {
+        const user = window.storage.getCurrentUser();
+        const reports = window.storage.getReports() || [];
+        const userReports = reports.filter(r => r.userId === user.id);
+        
+        const stats = {
+          memberName: `${user.firstName} ${user.lastName}`,
+          email: user.email,
+          joinDate: new Date(user.createdAt).toLocaleDateString('en-PH'),
+          reportsSubmitted: userReports.length,
+          pending: userReports.filter(r => r.status === 'pending').length,
+          inProgress: userReports.filter(r => r.status === 'in-progress' || r.status === 'in_progress').length,
+          resolved: userReports.filter(r => r.status === 'resolved').length,
+          exportDate: new Date().toISOString(),
+        };
+
+        // Create CSV content
+        const csvContent = convertToCSV(stats);
+
+        // Download CSV
+        downloadFile(csvContent, `dashboard-stats-${user.email}.csv`, 'text/csv');
+      }
+
+      /**
+       * Convert object to CSV format
+       */
+      function convertToCSV(data) {
+        const headers = Object.keys(data).join(',');
+        const values = Object.values(data).map(v => 
+          typeof v === 'string' && v.includes(',') ? `"${v}"` : v
+        ).join(',');
+        return `${headers}\n${values}`;
+      }
+
+      /**
+       * Trigger file download
+       */
+      function downloadFile(content, filename, type) {
+        const blob = new Blob([content], { type });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
+      /**
+       * Setup navbar scroll effects
+       */
+      function setupNavbarScroll() {
+        const nav = document.querySelector('.nav');
+        if (!nav) return;
+
+        window.addEventListener('scroll', () => {
+          if (window.scrollY > 50) {
+            nav.classList.add('scrolled');
+          } else {
+            nav.classList.remove('scrolled');
+          }
+        });
+      }
+
+      /**
+       * Make functions globally available
+       */
+      window.viewReport = function(reportId) {
+        // In a real app, this would open a modal or navigate to detail page
+        console.log('View report:', reportId);
+      };
+
+      /**
+       * Initialize dashboard on page load
+       */
+      function initDashboard() {
+        waitForCore(() => {
+          loadUserData();
+          initializeEventListeners();
+          
+          // Set up auto-refresh
+          setInterval(() => {
+            if (document.hidden) return;
+            loadUserData();
+          }, CONFIG.updateInterval);
+
+          console.log('Resident Dashboard initialized successfully');
+        });
+      }
+
+      // ── Initialization ────────────────────────────────────────
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initDashboard);
+      } else {
+        initDashboard();
+      }
+    })();
+  </script>
+</body>
+</html>

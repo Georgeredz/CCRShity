@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard — CCRS</title>
+  <link rel="stylesheet" href="ccrs.css">
+  
+  <!-- ── Leaflet Map Library ───────────────────────────────── -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  
+  <style>
+    /* ── Dashboard Shell ─────────────────────────────────── */
+    .dash-page {
+      min-height: 100vh;
+      padding: 5.5rem 2rem 3rem;
+      background: #f0f4f1;
+    }
+    .dash-inner { max-width: 78rem; margin: 0 auto; }
+
+    /* ── Page Header ─────────────────────────────────────── */
+    .dash-head {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      flex-wrap: wrap; gap: 1.25rem; margin-bottom: 2rem;
+    }
+    .dash-head-left h1 {
+      font-family: var(--font-disp); font-size: 1.875rem; font-weight: 900;
+      color: var(--ink); letter-spacing: -0.02em; line-height: 1.1;
+    }
+    .dash-head-left p { font-size: 0.85rem; color: var(--smoke); margin-top: 0.3rem; }
+    .dash-head-right { display: flex; gap: 0.625rem; align-items: center; flex-wrap: wrap; }
+
+    /* ── Stat Cards ──────────────────────────────────────── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem; margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: #fff; border-radius: 1.125rem;
+      padding: 1.375rem 1.25rem;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid rgba(0,0,0,0.05);
+      transition: all 0.25s; cursor: default;
+    }
+    .stat-card:hover { box-shadow: var(--shadow); transform: translateY(-2px); }
+    .stat-card-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 0.875rem; }
+    .stat-card-icon {
+      width: 2.625rem; height: 2.625rem; border-radius: 0.75rem;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .stat-card-icon svg { width: 1.15rem; height: 1.15rem; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .si-total    { background: #e8f4fd; color: #0369a1; }
+    .si-pending  { background: #fef3c7; color: #b45309; }
+    .si-progress { background: #dbeafe; color: #1d4ed8; }
+    .si-resolved { background: #dcfce7; color: #15803d; }
+    .stat-card-trend {
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.02em;
+      padding: 0.2rem 0.5rem; border-radius: 100px;
+    }
+    .trend-up   { background: #dcfce7; color: #15803d; }
+    .trend-mid  { background: #fffbeb; color: #b45309; }
+    .trend-info { background: #dbeafe; color: #1d4ed8; }
+    .stat-num {
+      font-family: var(--font-disp); font-size: 2.1rem; font-weight: 900;
+      color: var(--ink); line-height: 1; letter-spacing: -0.02em;
+    }
+    .stat-label { font-size: 0.78rem; font-weight: 600; color: var(--smoke); margin-top: 0.25rem; }
+    .stat-sub   { font-size: 0.7rem; color: #aabcb0; margin-top: 0.125rem; }
+
+    /* ── Toolbar ─────────────────────────────────────────── */
+    .toolbar {
+      display: flex; align-items: center; flex-wrap: wrap;
+      gap: 0.75rem; margin-bottom: 1.25rem;
+    }
+    .toolbar-left  { display: flex; gap: 0.5rem; flex-wrap: wrap; flex: 1; min-width: 0; }
+    .toolbar-right { display: flex; gap: 0.5rem; flex-shrink: 0; }
+    .search-wrap { position: relative; flex: 1; min-width: 180px; max-width: 300px; }
+    .search-wrap .search-icon {
+      position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%);
+      width: 0.875rem; height: 0.875rem; stroke: var(--smoke); fill: none; stroke-width: 2; stroke-linecap: round;
+      pointer-events: none;
+    }
+    .search-input {
+      width: 100%; padding: 0.5625rem 0.875rem 0.5625rem 2.25rem;
+      border-radius: 0.625rem; border: 1.5px solid var(--border);
+      background: #fff; font-size: 0.84rem; color: var(--ink);
+      font-family: inherit; outline: none; transition: border-color 0.2s;
+    }
+    .search-input:focus { border-color: var(--leaf); box-shadow: 0 0 0 3px rgba(26,107,60,0.08); }
+    .search-input::placeholder { color: #aabcb0; }
+    .filter-select {
+      padding: 0.5625rem 2.25rem 0.5625rem 0.875rem;
+      border-radius: 0.625rem; border: 1.5px solid var(--border);
+      background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235c6b5f' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 0.7rem center;
+      font-size: 0.84rem; font-family: inherit; color: var(--ink);
+      appearance: none; outline: none; cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .filter-select:focus { border-color: var(--leaf); }
+
+    /* ── Tabs ────────────────────────────────────────────── */
+    .dash-tabs {
+      display: flex; gap: 0.375rem; margin-bottom: 1.25rem;
+      background: #fff; padding: 0.3125rem; border-radius: 0.875rem;
+      border: 1px solid var(--border); width: fit-content;
+      flex-wrap: wrap;
+    }
+    .dash-tab {
+      padding: 0.4rem 1rem; border-radius: 0.625rem;
+      font-size: 0.8rem; font-weight: 600;
+      border: none; background: transparent;
+      cursor: pointer; transition: all 0.2s;
+      color: var(--smoke); display: flex; align-items: center; gap: 0.375rem;
+    }
+    .dash-tab:hover:not(.active) { background: var(--mist); color: var(--leaf); }
+    .dash-tab.active { background: var(--leaf); color: #fff; box-shadow: 0 2px 8px rgba(26,107,60,0.35); }
+    .tab-count {
+      font-size: 0.68rem; font-weight: 800; letter-spacing: 0.01em;
+      padding: 0.1rem 0.4rem; border-radius: 100px;
+    }
+    .dash-tab.active .tab-count { background: rgba(255,255,255,0.25); color: #fff; }
+    .dash-tab:not(.active) .tab-count { background: var(--mist); color: var(--smoke); }
+    .dash-tab.active:not(:has(.tab-count)):empty .tab-count { display: none; }
+
+    /* ── Report List ─────────────────────────────────────── */
+    .reports-list { display: flex; flex-direction: column; gap: 0.625rem; }
+    .report-card {
+      background: #fff; border-radius: 1rem;
+      border: 1px solid rgba(0,0,0,0.05);
+      box-shadow: var(--shadow-sm);
+      display: grid;
+      grid-template-columns: 2fr 2fr 3fr 1fr 1fr auto;
+      gap: 1rem; padding: 1.125rem 1.25rem;
+      align-items: center;
+      transition: all 0.2s;
+    }
+    .report-card:hover { box-shadow: var(--shadow); border-color: rgba(26,107,60,0.1); }
+    .report-col-head {
+      background: transparent;
+      display: grid;
+      grid-template-columns: 2fr 2fr 3fr 1fr 1fr auto;
+      gap: 1rem; padding: 0 1.25rem 0.5rem;
+      align-items: center;
+    }
+    .col-label { font-size: 0.68rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #aabcb0; }
+    .report-cat-wrap { display: flex; flex-direction: column; gap: 0.375rem; }
+    .report-cat-pill {
+      font-size: 0.78rem; font-weight: 700; color: var(--leaf);
+      background: var(--mist); padding: 0.25rem 0.625rem;
+      border-radius: 100px; width: fit-content;
+    }
+    .report-thumbs { display: flex; gap: 0.25rem; margin-top: 0.25rem; }
+    .report-thumb {
+      width: 2rem; height: 2rem; border-radius: 0.375rem;
+      object-fit: cover; cursor: pointer; border: 1.5px solid var(--border);
+      transition: transform 0.2s, border-color 0.15s;
+    }
+    .report-thumb:hover { transform: scale(1.1); border-color: var(--leaf); }
+    .report-more-photos {
+      width: 2rem; height: 2rem; border-radius: 0.375rem;
+      background: var(--mist); color: var(--smoke);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.6rem; font-weight: 700;
+    }
+    .report-loc { font-size: 0.82rem; color: var(--smoke); display: flex; align-items: flex-start; gap: 0.3rem; line-height: 1.4; }
+    .report-loc svg { width: 0.875rem; height: 0.875rem; stroke: var(--leaf); fill: none; stroke-width: 2; stroke-linecap: round; flex-shrink: 0; margin-top: 0.1rem; }
+    .report-desc { font-size: 0.82rem; color: var(--ink); line-height: 1.55; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; }
+    .report-status-col { display: flex; flex-direction: column; gap: 0.375rem; align-items: flex-start; }
+    .status-change-select {
+      padding: 0.2rem 1.25rem 0.2rem 0.4rem; border-radius: 0.375rem;
+      border: 1px solid var(--border);
+      background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%235c6b5f' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 0.3rem center;
+      font-size: 0.72rem; color: var(--smoke); font-family: inherit;
+      appearance: none; cursor: pointer; outline: none;
+      transition: border-color 0.15s;
+    }
+    .status-change-select:focus { border-color: var(--leaf); }
+    .report-date-col { font-size: 0.75rem; color: var(--smoke); line-height: 1.4; }
+    .report-actions { display: flex; gap: 0.375rem; }
+
+    /* ── Empty State ─────────────────────────────────────── */
+    .empty-state {
+      text-align: center; padding: 4.5rem 2rem;
+      background: #fff; border-radius: 1rem;
+      border: 1px solid rgba(0,0,0,0.05);
+    }
+    .empty-icon {
+      width: 4rem; height: 4rem; border-radius: 1.25rem;
+      background: var(--mist); display: flex; align-items: center;
+      justify-content: center; margin: 0 auto 1.25rem;
+    }
+    .empty-icon svg { width: 1.75rem; height: 1.75rem; stroke: var(--leaf); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .empty-state h3 { font-family: var(--font-disp); font-size: 1.125rem; font-weight: 900; color: var(--ink); margin-bottom: 0.375rem; }
+    .empty-state p  { font-size: 0.85rem; color: var(--smoke); }
+
+    /* ── Loading ─────────────────────────────────────────── */
+    .loading-row {
+      display: flex; align-items: center; justify-content: center;
+      gap: 0.625rem; padding: 3rem; color: var(--smoke); font-size: 0.85rem;
+    }
+    .spinner {
+      width: 1.25rem; height: 1.25rem; border-radius: 50%;
+      border: 2px solid var(--border); border-top-color: var(--leaf);
+      animation: spin 0.7s linear infinite;
+    }
+
+    /* ── Delete Confirm Modal ────────────────────────────── */
+    .delete-confirm-content { text-align: center; padding: 0.5rem; }
+    .delete-confirm-icon {
+      width: 3.5rem; height: 3.5rem; border-radius: 50%;
+      background: #fef2f2; display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 1rem;
+    }
+    .delete-confirm-icon svg { width: 1.5rem; height: 1.5rem; stroke: #dc2626; fill: none; stroke-width: 2; stroke-linecap: round; }
+    .delete-confirm-content h3 { font-family: var(--font-disp); font-size: 1.2rem; font-weight: 900; color: var(--ink); margin-bottom: 0.5rem; }
+    .delete-confirm-content p  { font-size: 0.85rem; color: var(--smoke); line-height: 1.6; }
+
+    /* ── Responsive ──────────────────────────────────────── */
+    @media (max-width: 1024px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .report-card, .report-col-head {
+        grid-template-columns: 1fr 1fr auto;
+        grid-template-rows: auto auto auto;
+      }
+      .report-card .report-desc { grid-column: 1 / -1; }
+      .report-col-head { display: none; }
+    }
+
+    /* ── Map Container ──────────────────────────────────── */
+    .map-section {
+      margin-bottom: 2rem;
+      padding: 0;
+    }
+
+    .map-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      padding: 0 0.25rem;
+    }
+
+    .map-header h2 {
+      font-family: var(--font-disp);
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--ink);
+      letter-spacing: -0.01em;
+      margin: 0;
+    }
+
+    .map-controls {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .map-legend {
+      font-size: 0.75rem;
+      color: var(--smoke);
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .map-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .map-legend-marker {
+      width: 0.875rem;
+      height: 0.875rem;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .map-legend-marker.pending { background: var(--gold); }
+    .map-legend-marker.progress { background: var(--sky); }
+    .map-legend-marker.resolved { background: var(--leaf); }
+
+    .map-container {
+      width: 100%;
+      height: 400px;
+      border-radius: 1.125rem;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      position: relative;
+    }
+
+    /* Leaflet customization */
+    .map-container .leaflet-container {
+      font-family: var(--font-body);
+    }
+
+    .map-popup-content {
+      font-family: var(--font-body);
+    }
+
+    .map-popup-header {
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: var(--ink);
+      margin-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+    }
+
+    .map-popup-detail {
+      font-size: 0.8rem;
+      color: var(--smoke);
+      margin: 0.35rem 0;
+      line-height: 1.4;
+    }
+
+    .map-popup-detail strong {
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    .map-popup-status {
+      display: inline-block;
+      padding: 0.2rem 0.5rem;
+      border-radius: 0.35rem;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-top: 0.5rem;
+    }
+
+    .map-popup-status.pending { background: rgba(249, 158, 11, 0.2); color: var(--gold); }
+    .map-popup-status.progress { background: rgba(14, 165, 233, 0.2); color: var(--sky); }
+    .map-popup-status.resolved { background: rgba(34, 197, 94, 0.2); color: var(--leaf); }
+
+    .map-no-data {
+      width: 100%;
+      height: 400px;
+      border-radius: 1.125rem;
+      background: var(--mist);
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      color: var(--smoke);
+      font-size: 0.9rem;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 100;
+    }
+
+    @media (max-width: 1024px) {
+      .map-container {
+        height: 350px;
+      }
+
+      .map-legend {
+        justify-content: center;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .dash-page { padding: 4.5rem 1rem 2rem; }
+      .stats-grid { grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+      .dash-tabs { flex-wrap: wrap; }
+      .report-card { grid-template-columns: 1fr auto; }
+      .report-loc, .report-date-col { display: none; }
+      .toolbar { flex-direction: column; align-items: stretch; }
+      .toolbar-left, .toolbar-right { width: 100%; }
+      .search-wrap { max-width: 100%; }
+      .stat-num { font-size: 1.75rem; }
+
+      .map-container {
+        height: 300px;
+      }
+
+      .map-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+      }
+
+      .map-legend {
+        font-size: 0.7rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── NAV ─────────────────────────────────────────────────────── -->
+<nav class="nav scrolled" id="navbar">
+  <a href="index.html" class="nav-brand">
+    <div class="nav-brand-icon">
+      <svg viewBox="0 0 24 24"><path d="M12 2C6 2 3 7 3 12c0 4 2.5 7 6 8.5V22h6v-1.5C18.5 19 21 16 21 12c0-5-3-10-9-10z"/><path d="M12 6v6l3 3"/></svg>
+    </div>
+    <div>
+      <span class="nav-brand-text">CCRS</span>
+      <span class="nav-brand-sub">Admin Panel</span>
+    </div>
+  </a>
+
+  <div class="nav-links">
+    <a href="index.html" class="nav-link">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Home
+    </a>
+    <a href="report.html" class="nav-link">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      Submit Report
+    </a>
+    <a href="admin-dashboard.html" class="nav-link active">
+      <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </a>
+  </div>
+
+  <div class="nav-btns" id="navBtns">
+    <a href="report.html" class="btn-ghost">
+      <svg style="width:0.875rem;height:0.875rem;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      New Report
+    </a>
+    <button onclick="window._ccrsLogout()" class="btn-solid">
+      <svg style="width:0.875rem;height:0.875rem;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+      Logout
+    </button>
+  </div>
+
+  <button class="hamburger" onclick="window.openDrawer()" aria-label="Open menu">
+    <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+</nav>
+
+<!-- ── DRAWER ───────────────────────────────────────────────────── -->
+<div class="drawer" id="mobileDrawer">
+  <div class="drawer-bg" onclick="window.closeDrawer()"></div>
+  <div class="drawer-panel">
+    <div class="drawer-head">
+      <a href="index.html" class="nav-brand">
+        <div class="nav-brand-icon" style="width:1.875rem;height:1.875rem;">
+          <svg viewBox="0 0 24 24" style="width:0.9rem;height:0.9rem;stroke:#fff;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;"><path d="M12 2C6 2 3 7 3 12c0 4 2.5 7 6 8.5V22h6v-1.5C18.5 19 21 16 21 12c0-5-3-10-9-10z"/><path d="M12 6v6l3 3"/></svg>
+        </div>
+        <span class="nav-brand-text" style="font-size:1.05rem;">CCRS</span>
+      </a>
+      <button class="drawer-close" onclick="window.closeDrawer()">
+        <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <a href="index.html" class="drawer-link">
+      <svg class="drawer-icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+      Home
+    </a>
+    <a href="report.html" class="drawer-link">
+      <svg class="drawer-icon" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      Submit Report
+    </a>
+    <a href="admin-dashboard.html" class="drawer-link active">
+      <svg class="drawer-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </a>
+    <div class="drawer-div"></div>
+    <button onclick="window._ccrsLogout()" class="drawer-link" style="border:none;background:none;text-align:left;width:100%;color:#b91c1c;cursor:pointer;">
+      <svg class="drawer-icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+      Logout
+    </button>
+  </div>
+</div>
+
+<!-- ── DASHBOARD PAGE ────────────────────────────────────────────── -->
+<main class="dash-page">
+  <div class="dash-inner">
+
+    <!-- Page Header -->
+    <div class="dash-head">
+      <div class="dash-head-left">
+        <h1>Reports Dashboard</h1>
+        <p id="welcomeMsg">Loading…</p>
+      </div>
+      <div class="dash-head-right">
+        <button class="btn-outline" id="exportBtn">
+          <svg style="width:0.875rem;height:0.875rem;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export CSV
+        </button>
+        <a href="report.html" class="btn-primary btn-sm">
+          <svg style="width:0.875rem;height:0.875rem;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+          New Report
+        </a>
+      </div>
+    </div>
+
+    <!-- Stat Cards -->
+    <div class="stats-grid reveal" id="statsGrid">
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <div class="stat-card-icon si-total">
+            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </div>
+          <span class="stat-card-trend trend-info">ALL</span>
+        </div>
+        <div class="stat-num" id="a-total">—</div>
+        <div class="stat-label">Total Reports</div>
+        <div class="stat-sub">All time submissions</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <div class="stat-card-icon si-pending">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <span class="stat-card-trend trend-mid" id="a-pending-trend">—</span>
+        </div>
+        <div class="stat-num" id="a-pending">—</div>
+        <div class="stat-label">Awaiting Action</div>
+        <div class="stat-sub">Need attention</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <div class="stat-card-icon si-progress">
+            <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          </div>
+          <span class="stat-card-trend trend-info">ACTIVE</span>
+        </div>
+        <div class="stat-num" id="a-progress">—</div>
+        <div class="stat-label">In Progress</div>
+        <div class="stat-sub">Being addressed</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <div class="stat-card-icon si-resolved">
+            <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+          <span class="stat-card-trend trend-up" id="a-rate-trend">—%</span>
+        </div>
+        <div class="stat-num" id="a-resolved">—</div>
+        <div class="stat-label">Resolved</div>
+        <div class="stat-sub">Resolution rate</div>
+      </div>
+    </div>
+
+    <!-- ── Map Section ──────────────────────────────────────── -->
+    <div class="map-section">
+      <div class="map-header">
+        <h2>📍 Community Issues Map</h2>
+        <div class="map-controls">
+          <div class="map-legend">
+            <div class="map-legend-item">
+              <div class="map-legend-marker pending"></div>
+              <span>Pending</span>
+            </div>
+            <div class="map-legend-item">
+              <div class="map-legend-marker progress"></div>
+              <span>In Progress</span>
+            </div>
+            <div class="map-legend-item">
+              <div class="map-legend-marker resolved"></div>
+              <span>Resolved</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="mapContainer" class="map-container"></div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <div class="search-wrap">
+          <svg class="search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="searchInput" class="search-input" placeholder="Search category, location, description…">
+        </div>
+        <select id="statusFilter" class="filter-select">
+          <option value="">All Statuses</option>
+          <option value="pending">Pending</option>
+          <option value="in-progress">In Progress</option>
+          <option value="resolved">Resolved</option>
+        </select>
+      </div>
+      <div class="toolbar-right">
+        <span id="reportCount" style="font-size:0.78rem;color:var(--smoke);align-self:center;white-space:nowrap;"></span>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="dash-tabs">
+      <button class="dash-tab active" data-filter="">
+        All
+        <span class="tab-count" id="tab-count-all">0</span>
+      </button>
+      <button class="dash-tab" data-filter="pending">
+        Pending
+        <span class="tab-count" id="tab-count-pending">0</span>
+      </button>
+      <button class="dash-tab" data-filter="in-progress">
+        In Progress
+        <span class="tab-count" id="tab-count-progress">0</span>
+      </button>
+      <button class="dash-tab" data-filter="resolved">
+        Resolved
+        <span class="tab-count" id="tab-count-resolved">0</span>
+      </button>
+    </div>
+
+    <!-- Column Headers (desktop) -->
+    <div class="report-col-head">
+      <span class="col-label">Category</span>
+      <span class="col-label">Location</span>
+      <span class="col-label">Description</span>
+      <span class="col-label">Status</span>
+      <span class="col-label">Submitted</span>
+      <span class="col-label">Actions</span>
+    </div>
+
+    <!-- Reports List -->
+    <div id="reportsList" class="reports-list">
+      <div class="loading-row">
+        <div class="spinner"></div>
+        Loading reports…
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- ── REPORT DETAIL MODAL ───────────────────────────────────────── -->
+<div class="modal" id="reportModal">
+  <div class="modal-backdrop" onclick="closeModal()"></div>
+  <div class="modal-panel" id="reportModalPanel">
+    <!-- filled by JS -->
+  </div>
+</div>
+
+<!-- ── DELETE CONFIRM MODAL ─────────────────────────────────────── -->
+<div class="modal" id="deleteModal">
+  <div class="modal-backdrop" onclick="closeDeleteModal()"></div>
+  <div class="modal-panel modal-panel-sm">
+    <div class="modal-body">
+      <div class="delete-confirm-content">
+        <div class="delete-confirm-icon">
+          <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+        </div>
+        <h3>Delete Report?</h3>
+        <p>This action is permanent and cannot be undone. The report and all its data will be removed.</p>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-outline" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn-primary" id="confirmDeleteBtn"
+        style="background:#dc2626;box-shadow:0 4px 14px rgba(220,38,38,0.3);">
+        Delete Report
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── SCRIPTS ──────────────────────────────────────────────────── -->
+<script src="ccrs-core.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+  // ── Admin guard ──────────────────────────────────────────────
+  if (!window.storage.isAdmin()) {
+    window.location.href = 'login.html';
+    return;
+  }
+
+  const user = window.storage.getCurrentUser();
+  if (user) {
+    const today = new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric' });
+    document.getElementById('welcomeMsg').textContent =
+      `${today} · Logged in as ${user.email}`;
+  }
+
+  // ── State ────────────────────────────────────────────────────
+  let activeFilter = '';
+  let searchQuery  = '';
+
+  // ── Stats ────────────────────────────────────────────────────
+  function refreshStats() {
+    const s = window.storage.getUserStats();
+    document.getElementById('a-total').textContent    = s.total;
+    document.getElementById('a-pending').textContent  = s.pending;
+    document.getElementById('a-progress').textContent = s.inProgress;
+    document.getElementById('a-resolved').textContent = s.resolved;
+
+    // Trends
+    const rate = s.total > 0 ? Math.round((s.resolved / s.total) * 100) : 0;
+    document.getElementById('a-rate-trend').textContent  = rate + '%';
+    document.getElementById('a-pending-trend').textContent =
+      s.pending === 0 ? 'CLEAR' : s.pending + ' LEFT';
+
+    // Tab counts
+    const all = window.storage.getReports();
+    document.getElementById('tab-count-all').textContent      = all.length;
+    document.getElementById('tab-count-pending').textContent  = all.filter(r => r.status === 'pending').length;
+    document.getElementById('tab-count-progress').textContent = all.filter(r => r.status === 'in-progress').length;
+    document.getElementById('tab-count-resolved').textContent = all.filter(r => r.status === 'resolved').length;
+  }
+
+  // ── Render Reports ───────────────────────────────────────────
+  function loadReports() {
+    let reports = window.storage.getReports();
+
+    if (activeFilter) reports = reports.filter(r => r.status === activeFilter);
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      reports = reports.filter(r =>
+        r.category?.toLowerCase().includes(q) ||
+        r.location?.toLowerCase().includes(q)  ||
+        r.description?.toLowerCase().includes(q)
+      );
+    }
+    reports.sort((a, b) => b.timestamp - a.timestamp);
+
+    const list = document.getElementById('reportsList');
+
+    // Update count
+    document.getElementById('reportCount').textContent =
+      reports.length === 1 ? '1 report' : `${reports.length} reports`;
+
+    if (reports.length === 0) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">
+            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          </div>
+          <h3>No reports found</h3>
+          <p>${searchQuery ? 'Try adjusting your search terms.' : 'No reports match this filter yet.'}</p>
+        </div>`;
+      return;
+    }
+
+    list.innerHTML = reports.map(r => {
+      const badge  = getBadgeHTML(r.status);
+      const photos = r.photos?.length
+        ? r.photos.slice(0, 3).map((p, i) =>
+            i < 2
+              ? `<img src="${p}" class="report-thumb" onclick="openModal('${r.id}')" title="View report">`
+              : r.photos.length > 3
+                ? `<div class="report-more-photos">+${r.photos.length - 2}</div>`
+                : `<img src="${p}" class="report-thumb" onclick="openModal('${r.id}')" title="View report">`
+          ).join('')
+        : '';
+
+      return `
+        <div class="report-card" id="row-${r.id}">
+          <!-- Category + photos -->
+          <div class="report-cat-wrap">
+            <span class="report-cat-pill">${window.CCRSUTILS.escapeHtml(r.category || 'Unknown')}</span>
+            ${photos ? `<div class="report-thumbs">${photos}</div>` : ''}
+          </div>
+          <!-- Location -->
+          <div class="report-loc">
+            <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span>${window.CCRSUTILS.escapeHtml(r.location || '—')}</span>
+          </div>
+          <!-- Description -->
+          <div class="report-desc">${window.CCRSUTILS.escapeHtml(r.description || '—')}</div>
+          <!-- Status -->
+          <div class="report-status-col">
+            ${badge}
+            <select class="status-change-select" onchange="updateStatus('${r.id}', this.value)" title="Change status">
+              <option value="pending"     ${r.status === 'pending'     ? 'selected' : ''}>Pending</option>
+              <option value="in-progress" ${r.status === 'in-progress' ? 'selected' : ''}>In Progress</option>
+              <option value="resolved"    ${r.status === 'resolved'    ? 'selected' : ''}>Resolved</option>
+            </select>
+          </div>
+          <!-- Date -->
+          <div class="report-date-col">${window.CCRSUTILS.formatDate(r.timestamp)}</div>
+          <!-- Actions -->
+          <div class="report-actions">
+            <button class="icon-btn" onclick="openModal('${r.id}')" title="View details">
+              <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+            <button class="icon-btn danger" onclick="confirmDelete('${r.id}')" title="Delete report">
+              <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+            </button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // ── Badge helper ─────────────────────────────────────────────
+  function getBadgeHTML(status) {
+    const map = {
+      'pending': `<span class="badge badge-pending">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Pending</span>`,
+      'in-progress': `<span class="badge badge-progress">
+        <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        In Progress</span>`,
+      'resolved': `<span class="badge badge-resolved">
+        <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        Resolved</span>`
+    };
+    return map[status] || map['pending'];
+  }
+
+  // ── Actions ──────────────────────────────────────────────────
+  // ── Global map instance (for live updates) ──────────────────
+  window._mapInstance = null;
+
+  window.updateStatus = function (id, status) {
+    window.storage.updateReport(id, { status });
+    loadReports();
+    refreshStats();
+    refreshMapMarkers(); // Refresh map when status changes
+    window.CCRSUTILS.showNotification('Status updated successfully.', 'success');
+  };
+
+  let pendingDeleteId = null;
+  window.confirmDelete = function (id) {
+    pendingDeleteId = id;
+    document.getElementById('deleteModal').classList.add('open');
+  };
+  window.closeDeleteModal = function () {
+    pendingDeleteId = null;
+    document.getElementById('deleteModal').classList.remove('open');
+  };
+  document.getElementById('confirmDeleteBtn').addEventListener('click', function () {
+    if (!pendingDeleteId) return;
+    window.storage.deleteReport(pendingDeleteId);
+    closeDeleteModal();
+    loadReports();
+    refreshStats();
+    refreshMapMarkers(); // Refresh map when report is deleted
+    window.CCRSUTILS.showNotification('Report deleted.', 'success');
+  });
+
+  // ── Detail Modal ─────────────────────────────────────────────
+  window.openModal = function (id) {
+    const report = window.storage.getReports().find(r => r.id === id);
+    if (!report) return;
+
+    const badge  = getBadgeHTML(report.status);
+    const photos = (report.photos || []).map(p =>
+      `<img src="${p}" class="modal-photo" onclick="window.open('${p}','_blank')" title="View full size">`
+    ).join('');
+
+    document.getElementById('reportModalPanel').innerHTML = `
+      <div class="modal-header">
+        <div>
+          <div class="modal-title">${window.CCRSUTILS.escapeHtml(report.category || 'Report Detail')}</div>
+          <div style="margin-top:0.375rem;">${badge}</div>
+        </div>
+        <button class="modal-close" onclick="closeModal()">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-divider" style="margin-top:1.25rem;"></div>
+      <div class="modal-body">
+        <div class="modal-field">
+          <label>Location</label>
+          <div class="modal-field-val location">
+            <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            ${window.CCRSUTILS.escapeHtml(report.location || '—')}
+          </div>
+        </div>
+        <div class="modal-field">
+          <label>Description</label>
+          <div class="modal-field-val">${window.CCRSUTILS.escapeHtml(report.description || '—')}</div>
+        </div>
+        <div class="modal-field">
+          <label>Submitted</label>
+          <div class="modal-field-val">${window.CCRSUTILS.formatDateFull(report.timestamp)}</div>
+        </div>
+        ${photos ? `
+        <div class="modal-field">
+          <label>Photos (${report.photos.length})</label>
+          <div class="modal-photos">${photos}</div>
+        </div>` : ''}
+        <div class="modal-field">
+          <label>Update Status</label>
+          <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+            <button onclick="updateStatus('${report.id}','pending');closeModal();" 
+              class="btn-outline btn-sm" ${report.status === 'pending' ? 'disabled style="opacity:0.5;cursor:default;"' : ''}>
+              Pending
+            </button>
+            <button onclick="updateStatus('${report.id}','in-progress');closeModal();"
+              class="btn-outline btn-sm" ${report.status === 'in-progress' ? 'disabled style="opacity:0.5;cursor:default;"' : ''}>
+              In Progress
+            </button>
+            <button onclick="updateStatus('${report.id}','resolved');closeModal();"
+              class="btn-primary btn-sm" ${report.status === 'resolved' ? 'disabled style="opacity:0.5;cursor:default;"' : ''}>
+              Mark Resolved
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-divider"></div>
+      <div class="modal-footer">
+        <button class="btn-outline" onclick="closeModal()">Close</button>
+        <button class="btn-danger-outline" onclick="closeModal(); confirmDelete('${report.id}')">
+          <svg style="width:0.75rem;height:0.75rem;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+          Delete Report
+        </button>
+      </div>`;
+
+    document.getElementById('reportModal').classList.add('open');
+  };
+
+  window.closeModal = function () {
+    document.getElementById('reportModal').classList.remove('open');
+  };
+
+  // ── Tabs ─────────────────────────────────────────────────────
+  document.querySelectorAll('.dash-tab').forEach(tab => {
+    tab.addEventListener('click', function () {
+      document.querySelectorAll('.dash-tab').forEach(t => t.classList.remove('active'));
+      this.classList.add('active');
+      activeFilter = this.dataset.filter;
+      document.getElementById('statusFilter').value = activeFilter;
+      loadReports();
+    });
+  });
+
+  // ── Filter / Search ──────────────────────────────────────────
+  document.getElementById('statusFilter').addEventListener('change', function () {
+    activeFilter = this.value;
+    document.querySelectorAll('.dash-tab').forEach(t => {
+      t.classList.toggle('active', t.dataset.filter === activeFilter);
+    });
+    loadReports();
+  });
+
+  let searchTimer;
+  document.getElementById('searchInput').addEventListener('input', function () {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      searchQuery = this.value.trim();
+      loadReports();
+    }, 250);
+  });
+
+  // ── Export CSV ───────────────────────────────────────────────
+  document.getElementById('exportBtn').addEventListener('click', function () {
+    const reports = window.storage.getReports();
+    if (!reports.length) {
+      window.CCRSUTILS.showNotification('No reports to export.', 'info');
+      return;
+    }
+    const header = 'ID,Category,Location,Description,Status,Date\n';
+    const rows   = reports.map(r =>
+      [r.id, r.category, r.location, r.description, r.status, new Date(r.timestamp).toISOString()]
+        .map(v => `"${String(v || '').replace(/"/g, '""')}"`).join(',')
+    ).join('\n');
+    const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = `ccrs-reports-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    window.CCRSUTILS.showNotification(`Exported ${reports.length} reports.`, 'success');
+  });
+
+  // ── Keyboard shortcuts ───────────────────────────────────────
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      closeModal();
+      closeDeleteModal();
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      e.preventDefault();
+      document.getElementById('searchInput').focus();
+    }
+  });
+
+  // ── Init ─────────────────────────────────────────────────────
+  
+  /**
+   * Refresh map markers without full reinitialization
+   * Called when reports are updated, deleted, or status changes
+   * More efficient than recreating the entire map and layers
+   */
+  function refreshMapMarkers() {
+    const mapContainer = document.getElementById('mapContainer');
+    if (!mapContainer || !window._mapInstance || !window._markersGroup) return;
+
+    const map = window._mapInstance;
+    const markersGroup = window._markersGroup;
+
+    try {
+      // Clear all existing markers in the group
+      markersGroup.clearLayers();
+
+      // Get all reports and add new markers
+      const reports = window.storage.getReports() || [];
+      let reportsWithLocation = 0;
+
+      reports.forEach(report => {
+        const lat = report.latitude || null;
+        const lng = report.longitude || null;
+
+        if (lat === null || lng === null) return;
+
+        reportsWithLocation++;
+
+        // Create circle marker with status-based color
+        const marker = L.circleMarker([lat, lng], {
+          radius: 8,
+          fillColor: getMarkerColor(report.status),
+          color: '#fff',
+          weight: 2,
+          opacity: 1,
+          fillOpacity: 0.8,
+        });
+
+        const popupHTML = createMarkerPopup(report);
+        marker.bindPopup(popupHTML);
+
+        marker.on('mouseover', function() {
+          this.setRadius(12);
+          this.setStyle({ weight: 3, fillOpacity: 1 });
+        });
+
+        marker.on('mouseout', function() {
+          this.setRadius(8);
+          this.setStyle({ weight: 2, fillOpacity: 0.8 });
+        });
+
+        marker.on('click', function() {
+          marker.openPopup();
+        });
+
+        // Add to markers group
+        markersGroup.addLayer(marker);
+      });
+
+      // Show no-data message if no reports with location
+      const noDataOverlay = mapContainer.querySelector('.map-no-data');
+      if (reportsWithLocation === 0) {
+        if (!noDataOverlay) {
+          const overlay = document.createElement('div');
+          overlay.className = 'map-no-data';
+          overlay.innerHTML = `
+            <svg style="width:3rem;height:3rem;stroke:var(--smoke);fill:none;stroke-width:1.5;opacity:0.5;" viewBox="0 0 24 24">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+              <circle cx="12" cy="10" r="3"/>
+            </svg>
+            <span>No location data available for reports</span>
+          `;
+          mapContainer.appendChild(overlay);
+        } else {
+          noDataOverlay.style.display = 'flex';
+        }
+      } else if (noDataOverlay) {
+        noDataOverlay.style.display = 'none';
+      }
+    } catch (error) {
+      console.error('Error refreshing map markers:', error);
+    }
+  }
+
+  // ── Initialize Map ────────────────────────────────────────────
+  /**
+   * Initialize Leaflet map with OpenStreetMap tiles
+   * Display markers for each report with location data
+   */
+  function initializeMap() {
+    const mapContainer = document.getElementById('mapContainer');
+    if (!mapContainer) return;
+
+    // Prevent multiple initializations
+    if (window._mapInstance) return;
+
+    try {
+      // Create map centered on Philippines (default)
+      // Default center: 12.8797° N, 121.7740° E
+      const map = L.map('mapContainer').setView([12.8797, 121.7740], 6);
+
+      // Store map instance globally for later updates
+      window._mapInstance = map;
+
+      // Add OpenStreetMap tiles
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19,
+        minZoom: 4,
+      }).addTo(map);
+
+      // Create a FeatureGroup to hold all markers (for easy clearing)
+      window._markersGroup = L.featureGroup().addTo(map);
+
+      // Load initial markers
+      refreshMapMarkers();
+
+    } catch (error) {
+      console.error('Map initialization failed:', error);
+      mapContainer.innerHTML = `
+        <div class="map-no-data">
+          <span>Error loading map. Please refresh the page.</span>
+        </div>
+      `;
+    }
+  }
+
+  /**
+   * Get marker color based on report status
+   * @param {string} status - Report status (pending, in-progress, resolved)
+   * @returns {string} - Hex color code
+   */
+  function getMarkerColor(status) {
+    const colors = {
+      'pending': '#f59e0b',      // gold/amber
+      'in-progress': '#0ea5e9',  // sky blue
+      'resolved': '#22c55e',     // green/leaf
+    };
+    return colors[status] || '#6b7280'; // default gray
+  }
+
+  /**
+   * Create formatted popup HTML for map marker
+   * @param {object} report - Report object
+   * @returns {string} - HTML for popup
+   */
+  function createMarkerPopup(report) {
+    const statusLabel = {
+      'pending': 'Pending',
+      'in-progress': 'In Progress',
+      'resolved': 'Resolved',
+    }[report.status] || report.status || 'Unknown';
+
+    const dateStr = window.CCRSUTILS.formatDate(report.timestamp);
+    const descShort = report.description ? report.description.substring(0, 60) + 
+                      (report.description.length > 60 ? '...' : '') : '';
+
+    // Use the location string from the report
+    const locationStr = report.location || 'Unknown Location';
+
+    return `
+      <div class="map-popup-content">
+        <div class="map-popup-header">${window.CCRSUTILS.escapeHtml(report.category || 'Report')}</div>
+        <div class="map-popup-detail">
+          <strong>📍 Location:</strong> ${window.CCRSUTILS.escapeHtml(locationStr)}
+        </div>
+        <div class="map-popup-detail" style="font-size:0.75rem;color:#888;">
+          Coordinates: ${(report.latitude || 0).toFixed(6)}, ${(report.longitude || 0).toFixed(6)}
+        </div>
+        <div class="map-popup-detail">
+          <strong>Issue:</strong> ${window.CCRSUTILS.escapeHtml(descShort)}
+        </div>
+        <div class="map-popup-detail">
+          <strong>📅 Submitted:</strong> ${dateStr}
+        </div>
+        <div class="map-popup-detail" style="font-size:0.75rem;color:#888;">
+          <strong>Coordinates:</strong> ${(report.latitude || 0).toFixed(4)}, ${(report.longitude || 0).toFixed(4)}
+        </div>
+        <span class="map-popup-status ${report.status || ''}">
+          ${statusLabel}
+        </span>
+      </div>
+    `;
+  }
+
+  refreshStats();
+  loadReports();
+
+  // Initialize map after data loads
+  setTimeout(() => {
+    initializeMap();
+  }, 100);
+
+  // Animate stat cards in
+  setTimeout(() => {
+    document.getElementById('statsGrid')?.classList.add('visible');
+  }, 100);
+
+}); // end DOMContentLoaded
+</script>
+</body>
+</html>
