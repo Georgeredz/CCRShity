@@ -876,10 +876,10 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.style.display = 'none';
         window.CCRSUTILS.showNotification('Anonymous report submitted! Save your tracking code: ' + report.trackingCode, 'success');
         // Redirect after 6 seconds so user can copy tracking code
-        setTimeout(() => { window.location.href = 'index.html'; }, 6000);
+        setTimeout(() => { window.location.href = 'resident-dashboard.html'; }, 6000);
       } else {
         window.CCRSUTILS.showNotification('Report submitted successfully (Tracking: ' + report.trackingCode + '). Thank you!', 'success');
-        setTimeout(() => { window.location.href = 'index.html'; }, 1500);
+        setTimeout(() => { window.location.href = 'resident-dashboard.html'; }, 1500);
       }
     } else {
       btn.disabled = false;
