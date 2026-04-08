@@ -703,9 +703,352 @@
     }
   }
 
-  /* ── Public API ───────────────────────────────────────────── */
-  global.storage = { getReports, saveReport, updateReport, deleteReport, getUserStats, getUsers, saveUser, findUser, login, logout, getCurrentUser, isAuthenticated, isAdmin };
-  global.CCRSUTILS = { CATEGORIES, LOCATIONS, getCountries, getProvinces, getCities, getBarangays, getCoordinates, formatDate, formatDateFull, formatStatus, validateReportForm, createPhotoPreview, showNotification, redirectIfNotAuth, escapeHtml, animateCounter, reverseGeocode };
+  /* ═══════════════════════════════════════════════════════════════
+     ENHANCED FEATURES — v2.0
+     1. Duplicate Report Handling (Merge Tickets + Active Issues Map)
+     2. Verification Loop (Resolution Confirmation)
+     3. Anonymous Reporting
+     4. Localized Notifications (SMS / Viber architecture)
+     5. Pricing model helpers
+     ═══════════════════════════════════════════════════════════════ */
+
+  /* ── Storage Keys (new) ────────────────────────────────────── */
+  const SK_NOTIFICATIONS = 'ccrs_notifications';
+  const SK_MERGE_LOG     = 'ccrs_merge_log';
+
+  /* ── Tracking Code Generator ───────────────────────────────── */
+  function generateTrackingCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = 'CCRS-';
+    for (let i = 0; i < 8; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+    return code;
+  }
+
+  /* ── Enhanced Report Save (supports anonymous + tracking) ─── */
+  function saveReportEnhanced(data) {
+    const user = getCurrentUser();
+    const trackingCode = generateTrackingCode();
+    const report = {
+      id: uid(),
+      category:    data.category || 'Other',
+      location:    data.location || '',
+      country:     data.country || 'Philippines',
+      province:    data.province || '',
+      city:        data.city || '',
+      barangay:    data.barangay || '',
+      latitude:    data.latitude || 12.8797,
+      longitude:   data.longitude || 121.7740,
+      description: data.description || '',
+      photos:      data.photos || [],
+      status:      'pending',
+      timestamp:   Date.now(),
+      userId:      data.isAnonymous ? 'anonymous' : (user ? user.id : 'guest'),
+      // ── New fields ──
+      trackingCode:          trackingCode,
+      isAnonymous:           !!data.isAnonymous,
+      reporterName:          data.isAnonymous ? null : (user ? (user.firstName + ' ' + user.lastName).trim() : null),
+      reporterEmail:         data.isAnonymous ? null : (user ? user.email : null),
+      reporterPhone:         data.isAnonymous ? null : (user ? user.phone : null),
+      // Verification loop fields
+      resolutionStatus:      null,   // null | 'awaiting-confirmation' | 'confirmed' | 'reopened'
+      resolvedAt:            null,
+      resolvedBy:            null,
+      confirmationDeadline:  null,
+      reopenPhoto:           null,
+      reopenReason:          null,
+      // Merge fields
+      mergedInto:            null,
+      mergedReportIds:       [],
+      isMerged:              false,
+      // Notification preference
+      notificationPreference: data.notificationPreference || 'email',
+      notificationPhone:      data.notificationPhone || (user ? user.phone : ''),
+    };
+    const reports = getReports();
+    reports.unshift(report);
+    _saveReports(reports);
+    return report;
+  }
+
+  /* ── Get Report by Tracking Code ───────────────────────────── */
+  function getReportByTrackingCode(code) {
+    if (!code) return null;
+    return getReports().find(r => r.trackingCode === code) || null;
+  }
+
+  /* ── Nearby Reports (for duplicate detection) ──────────────── */
+  function getNearbyReports(lat, lng, radiusKm, category) {
+    if (!lat || !lng) return [];
+    const reports = getReports().filter(r => 
+      r.latitude && r.longitude && 
+      r.status !== 'resolved' &&
+      !r.isMerged
+    );
+    return reports.filter(r => {
+      const dist = haversineDistance(lat, lng, r.latitude, r.longitude);
+      const categoryMatch = category ? r.category === category : true;
+      return dist <= radiusKm && categoryMatch;
+    });
+  }
+
+  function haversineDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  /* ── Merge Reports ─────────────────────────────────────────── */
+  function mergeReports(targetId, sourceIds) {
+    const reports = getReports();
+    const target = reports.find(r => r.id === targetId);
+    if (!target) return null;
+    const merged = [];
+    sourceIds.forEach(srcId => {
+      const src = reports.find(r => r.id === srcId);
+      if (src && src.id !== targetId) {
+        src.isMerged = true;
+        src.mergedInto = targetId;
+        src.status = target.status;
+        // Append any photos from source to target
+        if (src.photos && src.photos.length) {
+          target.photos = (target.photos || []).concat(src.photos);
+        }
+        merged.push(srcId);
+      }
+    });
+    target.mergedReportIds = (target.mergedReportIds || []).concat(merged);
+    _saveReports(reports);
+    // Log merge action
+    const log = readJSON(SK_MERGE_LOG, []);
+    log.push({ targetId, sourceIds: merged, mergedAt: Date.now(), mergedBy: getCurrentUser()?.id });
+    writeJSON(SK_MERGE_LOG, log);
+    return target;
+  }
+
+  function unmergeReport(reportId) {
+    const reports = getReports();
+    const report = reports.find(r => r.id === reportId);
+    if (!report || !report.mergedInto) return null;
+    const parent = reports.find(r => r.id === report.mergedInto);
+    if (parent) {
+      parent.mergedReportIds = (parent.mergedReportIds || []).filter(id => id !== reportId);
+    }
+    report.isMerged = false;
+    report.mergedInto = null;
+    _saveReports(reports);
+    return report;
+  }
+
+  /* ── Verification Loop ─────────────────────────────────────── */
+  function markResolvedWithVerification(reportId, adminId) {
+    const reports = getReports();
+    const report = reports.find(r => r.id === reportId);
+    if (!report) return null;
+    report.status = 'resolved';
+    report.resolvedAt = Date.now();
+    report.resolvedBy = adminId || (getCurrentUser()?.id);
+    report.resolutionStatus = 'awaiting-confirmation';
+    // Set 48-hour confirmation window
+    report.confirmationDeadline = Date.now() + (48 * 60 * 60 * 1000);
+    _saveReports(reports);
+    // Create notification for the reporter
+    if (report.userId && report.userId !== 'anonymous' && report.userId !== 'guest') {
+      createNotification({
+        userId: report.userId,
+        reportId: report.id,
+        type: 'resolution-verification',
+        title: 'Your report has been marked as Resolved',
+        message: 'Please confirm if the issue "' + report.category + '" at ' + report.location + ' has been resolved. You have 48 hours to confirm or re-open with new evidence.',
+        channel: report.notificationPreference || 'email',
+        phone: report.notificationPhone || '',
+      });
+    }
+    return report;
+  }
+
+  function confirmResolution(reportId) {
+    const reports = getReports();
+    const report = reports.find(r => r.id === reportId);
+    if (!report) return null;
+    report.resolutionStatus = 'confirmed';
+    _saveReports(reports);
+    createNotification({
+      userId: report.resolvedBy || 'admin',
+      reportId: report.id,
+      type: 'resolution-confirmed',
+      title: 'Resolution Confirmed',
+      message: 'The reporter has confirmed that "' + report.category + '" at ' + report.location + ' is resolved.',
+      channel: 'system',
+    });
+    return report;
+  }
+
+  function reopenReport(reportId, reason, photoEvidence) {
+    const reports = getReports();
+    const report = reports.find(r => r.id === reportId);
+    if (!report) return null;
+    report.status = 'in-progress';
+    report.resolutionStatus = 'reopened';
+    report.reopenReason = reason || 'Issue not resolved';
+    if (photoEvidence) {
+      report.reopenPhoto = photoEvidence;
+      report.photos = (report.photos || []).concat([photoEvidence]);
+    }
+    _saveReports(reports);
+    createNotification({
+      userId: report.resolvedBy || 'admin',
+      reportId: report.id,
+      type: 'report-reopened',
+      title: 'Report Re-opened',
+      message: 'The reporter has re-opened "' + report.category + '" at ' + report.location + '. Reason: ' + (reason || 'Issue not resolved'),
+      channel: 'system',
+    });
+    return report;
+  }
+
+  /* Auto-confirm after deadline passes */
+  function processExpiredVerifications() {
+    const reports = getReports();
+    let changed = false;
+    reports.forEach(r => {
+      if (r.resolutionStatus === 'awaiting-confirmation' && r.confirmationDeadline && Date.now() > r.confirmationDeadline) {
+        r.resolutionStatus = 'confirmed';
+        changed = true;
+      }
+    });
+    if (changed) _saveReports(reports);
+  }
+
+  /* ── Notification System ───────────────────────────────────── */
+  function getNotifications(userId) {
+    const all = readJSON(SK_NOTIFICATIONS, []);
+    if (!userId) return all;
+    return all.filter(n => n.userId === userId || n.userId === 'admin' || n.userId === 'all');
+  }
+
+  function createNotification(data) {
+    const notifications = readJSON(SK_NOTIFICATIONS, []);
+    const notif = {
+      id: uid(),
+      userId:    data.userId || 'all',
+      reportId:  data.reportId || null,
+      type:      data.type || 'info',
+      title:     data.title || '',
+      message:   data.message || '',
+      channel:   data.channel || 'email',   // 'email' | 'sms' | 'viber' | 'system'
+      phone:     data.phone || '',
+      read:      false,
+      createdAt: Date.now(),
+      // SMS/Viber integration fields (for future backend hookup)
+      smsStatus:   data.channel === 'sms'   ? 'queued' : null,
+      viberStatus: data.channel === 'viber'  ? 'queued' : null,
+    };
+    notifications.unshift(notif);
+    writeJSON(SK_NOTIFICATIONS, notifications);
+    return notif;
+  }
+
+  function markNotificationRead(notifId) {
+    const notifications = readJSON(SK_NOTIFICATIONS, []);
+    const n = notifications.find(x => x.id === notifId);
+    if (n) { n.read = true; writeJSON(SK_NOTIFICATIONS, notifications); }
+  }
+
+  function getUnreadCount(userId) {
+    return getNotifications(userId).filter(n => !n.read).length;
+  }
+
+  /* ── SMS / Viber Integration Stubs ─────────────────────────── */
+  /**
+   * These functions are designed as integration points for real SMS/Viber APIs.
+   * In production, replace these with actual API calls to services like:
+   * - Semaphore (semaphore.co) for Philippine SMS
+   * - Viber Bot API (partners.viber.com)
+   * - Globe Labs API (developer.globelabs.com.ph)
+   * - Smart DevNet (devnet.smart.com.ph)
+   */
+  function sendSMS(phone, message) {
+    console.log('[CCRS SMS Gateway] To:', phone, '| Message:', message);
+    // In production: POST to SMS API endpoint
+    // Example: fetch('/api/sms/send', { method: 'POST', body: JSON.stringify({ phone, message }) })
+    return { status: 'queued', phone, message, provider: 'semaphore', timestamp: Date.now() };
+  }
+
+  function sendViber(phone, message) {
+    console.log('[CCRS Viber Gateway] To:', phone, '| Message:', message);
+    // In production: POST to Viber Bot API
+    // Example: fetch('https://chatapi.viber.com/pa/send_message', { ... })
+    return { status: 'queued', phone, message, provider: 'viber-bot', timestamp: Date.now() };
+  }
+
+  function sendNotificationByPreference(userId, reportId, title, message) {
+    const users = getUsers();
+    const user = users.find(u => u.id === userId);
+    const report = getReports().find(r => r.id === reportId);
+    const pref = report?.notificationPreference || 'email';
+    const phone = report?.notificationPhone || user?.phone || '';
+
+    const notif = createNotification({
+      userId, reportId, type: 'status-update', title, message,
+      channel: pref, phone,
+    });
+
+    if (pref === 'sms' && phone) sendSMS(phone, title + ': ' + message);
+    if (pref === 'viber' && phone) sendViber(phone, title + ': ' + message);
+
+    return notif;
+  }
+
+  /* ── User Notification Preferences ─────────────────────────── */
+  function updateUserNotificationPref(userId, pref, phone) {
+    const users = getUsers();
+    const user = users.find(u => u.id === userId);
+    if (!user) return null;
+    user.notificationPreference = pref || 'email';
+    if (phone) user.phone = phone;
+    _saveUsers(users);
+    return user;
+  }
+
+  /* ── Get visible reports (exclude merged, filter anonymous) ── */
+  function getVisibleReports(includeAnonymousDetails) {
+    processExpiredVerifications();
+    return getReports()
+      .filter(r => !r.isMerged)
+      .map(r => {
+        if (r.isAnonymous && !includeAnonymousDetails) {
+          return { ...r, userId: 'anonymous', reporterName: null, reporterEmail: null, reporterPhone: null, notificationPhone: null };
+        }
+        return r;
+      });
+  }
+
+  /* ── Format resolution status ──────────────────────────────── */
+  function formatResolutionStatus(status) {
+    const map = {
+      'awaiting-confirmation': { label: 'Awaiting Confirmation', cls: 'badge-awaiting', color: '#f59e0b' },
+      'confirmed':             { label: 'Confirmed Resolved',    cls: 'badge-confirmed', color: '#22c55e' },
+      'reopened':              { label: 'Re-opened',             cls: 'badge-reopened',  color: '#ef4444' },
+    };
+    return map[status] || null;
+  }
+
+  /* ── Public API (enhanced) ─────────────────────────────────── */
+  global.storage = { 
+    getReports, saveReport, updateReport, deleteReport, getUserStats, getUsers, saveUser, findUser, login, logout, getCurrentUser, isAuthenticated, isAdmin,
+    // New enhanced methods
+    saveReportEnhanced, getReportByTrackingCode, getNearbyReports,
+    mergeReports, unmergeReport,
+    markResolvedWithVerification, confirmResolution, reopenReport, processExpiredVerifications,
+    getNotifications, createNotification, markNotificationRead, getUnreadCount,
+    sendSMS, sendViber, sendNotificationByPreference, updateUserNotificationPref,
+    getVisibleReports, formatResolutionStatus, generateTrackingCode,
+  };
+  global.CCRSUTILS = { CATEGORIES, LOCATIONS, getCountries, getProvinces, getCities, getBarangays, getCoordinates, formatDate, formatDateFull, formatStatus, validateReportForm, createPhotoPreview, showNotification, redirectIfNotAuth, escapeHtml, animateCounter, reverseGeocode, formatResolutionStatus, haversineDistance };
   global.CCRSUPTILS = global.CCRSUTILS; // legacy alias
 
 })(window);
