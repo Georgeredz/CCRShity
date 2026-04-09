@@ -7,6 +7,11 @@
   <meta name="description" content="Manage your community reports and stay updated with announcements.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="ccrs.css">
+  <!-- Firebase SDK (compat for vanilla JS) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="firebase-config.js"></script>
   <script src="ccrs-core.js" defer></script>
   
   <style>
@@ -1315,8 +1320,12 @@
       /**
        * Make functions globally available
        */
-      window.confirmResolvedReport = function(reportId) {
-        window.storage.confirmResolution(reportId);
+      window.confirmResolvedReport = async function(reportId) {
+        if (window.storage.fbConfirmResolution) {
+          await window.storage.fbConfirmResolution(reportId);
+        } else {
+          window.storage.confirmResolution(reportId);
+        }
         window.CCRSUTILS.showNotification('Thank you for confirming! The issue has been verified as resolved.', 'success');
         loadVerificationRequests();
         loadNotifications();
@@ -1324,11 +1333,14 @@
         if (user) updateDashboardStats(user);
       };
 
-      window.openReopenModal = function(reportId) {
+      window.openReopenModal = async function(reportId) {
         const reason = prompt('Why is this issue not resolved? Describe what you still see:');
         if (!reason) return;
-        // In a real app, we would also allow photo upload here
-        window.storage.reopenReport(reportId, reason, null);
+        if (window.storage.fbReopenReport) {
+          await window.storage.fbReopenReport(reportId, reason, null);
+        } else {
+          window.storage.reopenReport(reportId, reason, null);
+        }
         window.CCRSUTILS.showNotification('Report re-opened. Officials have been notified.', 'info');
         loadVerificationRequests();
         loadNotifications();
@@ -1406,7 +1418,11 @@
        * Initialize dashboard on page load
        */
       function initDashboard() {
-        waitForCore(() => {
+        waitForCore(async () => {
+          // Sync from Firestore if available
+          if (window.storage.fbInitialSync) {
+            try { await window.storage.fbInitialSync(); } catch(e) { console.log('[Dashboard] Firebase sync skipped:', e); }
+          }
           loadUserData();
           initializeEventListeners();
           loadVerificationRequests();

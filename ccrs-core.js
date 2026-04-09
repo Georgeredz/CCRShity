@@ -1037,16 +1037,309 @@
     return map[status] || null;
   }
 
+  /* ═══════════════════════════════════════════════════════════════
+     FIREBASE BACKEND LAYER
+     Async methods that persist to Firestore + sync to localStorage.
+     The sync localStorage methods above still work as instant cache.
+     Call these fb* methods for persistent operations.
+     ═══════════════════════════════════════════════════════════════ */
+
+  function _fbAvailable() {
+    return !!(global.FB && global.FB.db);
+  }
+
+  /* ── Firebase Auth Integration ─────────────────────────────── */
+  async function fbRegister(data) {
+    if (!_fbAvailable()) return saveUser(data);
+    try {
+      const fbUser = await global.FB.registerUser(data.email, data.password || 'password');
+      const userData = {
+        id: fbUser.uid,
+        firstName: (data.firstName || '').trim(),
+        lastName: (data.lastName || '').trim(),
+        email: data.email.toLowerCase().trim(),
+        phone: data.phone || '',
+        role: data.role || 'resident',
+        notificationPreference: data.notificationPreference || 'email',
+        createdAt: Date.now(),
+      };
+      await global.FB.setDoc(global.FB.COLLECTIONS.USERS, fbUser.uid, userData);
+      // Also save to local cache
+      const users = getUsers();
+      userData.token = uid() + uid();
+      userData.passwordHash = hashPassword(data.password || 'password');
+      users.push(userData);
+      _saveUsers(users);
+      return userData;
+    } catch (e) {
+      if (e.code === 'auth/email-already-in-use') {
+        showNotification('Email already registered. Please log in.', 'error');
+        return null;
+      }
+      console.error('[FB Register]', e);
+      return saveUser(data);
+    }
+  }
+
+  async function fbLogin(email, password) {
+    if (!_fbAvailable()) return login(email, password);
+    try {
+      const fbUser = await global.FB.signIn(email, password);
+      // Get user profile from Firestore
+      let userData = await global.FB.getDoc(global.FB.COLLECTIONS.USERS, fbUser.uid);
+      if (!userData) {
+        // Fallback: user exists in Auth but not Firestore, create profile
+        userData = {
+          id: fbUser.uid,
+          email: email.toLowerCase().trim(),
+          role: 'resident',
+          firstName: '',
+          lastName: '',
+          createdAt: Date.now(),
+        };
+        await global.FB.setDoc(global.FB.COLLECTIONS.USERS, fbUser.uid, userData);
+      }
+      // Store in localStorage for sync reads
+      localStorage.setItem(SK.AUTH_TOKEN, fbUser.uid);
+      localStorage.setItem(SK.AUTH_TS, Date.now().toString());
+      const users = getUsers();
+      const existing = users.findIndex(u => u.email?.toLowerCase() === email.toLowerCase());
+      if (existing >= 0) {
+        users[existing] = { ...users[existing], ...userData, token: fbUser.uid };
+      } else {
+        users.push({ ...userData, token: fbUser.uid, passwordHash: hashPassword(password) });
+      }
+      _saveUsers(users);
+      return userData;
+    } catch (e) {
+      console.error('[FB Login]', e.message);
+      // Fallback to localStorage login
+      const localUser = login(email, password);
+      if (localUser) return localUser;
+      throw e;
+    }
+  }
+
+  async function fbLogout() {
+    if (_fbAvailable()) {
+      try { await global.FB.signOut(); } catch(e) {}
+    }
+    logout();
+  }
+
+  function fbGetCurrentUser() {
+    if (_fbAvailable() && global.FB.getCurrentAuthUser()) {
+      const fbUser = global.FB.getCurrentAuthUser();
+      const users = getUsers();
+      return users.find(u => u.token === fbUser.uid || u.id === fbUser.uid || u.email?.toLowerCase() === fbUser.email?.toLowerCase()) || getCurrentUser();
+    }
+    return getCurrentUser();
+  }
+
+  function fbIsAuthenticated() {
+    if (_fbAvailable() && global.FB.getCurrentAuthUser()) return true;
+    return isAuthenticated();
+  }
+
+  function fbIsAdmin() {
+    const u = fbGetCurrentUser();
+    return !!(u && u.role === 'admin');
+  }
+
+  /* ── Firebase Reports CRUD ─────────────────────────────────── */
+  async function fbSaveReport(data) {
+    const report = saveReportEnhanced(data);
+    if (!report) return null;
+    if (_fbAvailable()) {
+      try {
+        // Save to Firestore (without base64 photos to avoid size limits)
+        const fbData = { ...report };
+        // Truncate photos for Firestore (base64 can be huge)
+        if (fbData.photos && fbData.photos.length > 0) {
+          fbData.photoCount = fbData.photos.length;
+          fbData.photos = []; // Don't store base64 in Firestore
+        }
+        await global.FB.setDoc(global.FB.COLLECTIONS.REPORTS, report.id, fbData);
+      } catch(e) {
+        console.error('[FB SaveReport]', e);
+      }
+    }
+    return report;
+  }
+
+  async function fbUpdateReport(id, patch) {
+    const result = updateReport(id, patch);
+    if (result && _fbAvailable()) {
+      try {
+        await global.FB.updateDoc(global.FB.COLLECTIONS.REPORTS, id, patch);
+      } catch(e) {
+        console.error('[FB UpdateReport]', e);
+      }
+    }
+    return result;
+  }
+
+  async function fbDeleteReport(id) {
+    deleteReport(id);
+    if (_fbAvailable()) {
+      try {
+        await global.FB.deleteDoc(global.FB.COLLECTIONS.REPORTS, id);
+      } catch(e) {
+        console.error('[FB DeleteReport]', e);
+      }
+    }
+  }
+
+  async function fbMergeReports(targetId, sourceIds) {
+    const result = mergeReports(targetId, sourceIds);
+    if (result && _fbAvailable()) {
+      try {
+        const reports = getReports();
+        // Update target in Firestore
+        const target = reports.find(r => r.id === targetId);
+        if (target) await global.FB.setDoc(global.FB.COLLECTIONS.REPORTS, targetId, target);
+        // Update merged sources
+        for (const srcId of sourceIds) {
+          const src = reports.find(r => r.id === srcId);
+          if (src) await global.FB.setDoc(global.FB.COLLECTIONS.REPORTS, srcId, src);
+        }
+      } catch(e) { console.error('[FB Merge]', e); }
+    }
+    return result;
+  }
+
+  async function fbMarkResolved(reportId, adminId) {
+    const result = markResolvedWithVerification(reportId, adminId);
+    if (result && _fbAvailable()) {
+      try {
+        await global.FB.setDoc(global.FB.COLLECTIONS.REPORTS, reportId, result);
+      } catch(e) { console.error('[FB Resolve]', e); }
+    }
+    return result;
+  }
+
+  async function fbConfirmResolution(reportId) {
+    const result = confirmResolution(reportId);
+    if (result && _fbAvailable()) {
+      try {
+        await global.FB.updateDoc(global.FB.COLLECTIONS.REPORTS, reportId, { resolutionStatus: 'confirmed' });
+      } catch(e) { console.error('[FB Confirm]', e); }
+    }
+    return result;
+  }
+
+  async function fbReopenReport(reportId, reason, photo) {
+    const result = reopenReport(reportId, reason, photo);
+    if (result && _fbAvailable()) {
+      try {
+        await global.FB.setDoc(global.FB.COLLECTIONS.REPORTS, reportId, result);
+      } catch(e) { console.error('[FB Reopen]', e); }
+    }
+    return result;
+  }
+
+  async function fbCreateNotification(data) {
+    const notif = createNotification(data);
+    if (notif && _fbAvailable()) {
+      try {
+        await global.FB.setDoc(global.FB.COLLECTIONS.NOTIFICATIONS, notif.id, notif);
+      } catch(e) { console.error('[FB Notif]', e); }
+    }
+    return notif;
+  }
+
+  /* ── Firebase Sync on Page Load ────────────────────────────── */
+  async function fbInitialSync() {
+    if (!_fbAvailable()) {
+      console.log('[CCRS] Firebase not available, using localStorage only.');
+      return;
+    }
+    try {
+      console.log('[CCRS] Syncing data from Firestore...');
+      // Sync reports
+      const fbReports = await global.FB.getAllDocs(global.FB.COLLECTIONS.REPORTS, 'timestamp');
+      if (fbReports.length > 0) {
+        // Merge with local (local may have photos that Firestore doesn't)
+        const localReports = getReports();
+        const merged = [];
+        const seen = new Set();
+        // Firestore reports take priority for non-photo fields
+        fbReports.forEach(fbr => {
+          const local = localReports.find(lr => lr.id === fbr.id);
+          if (local && local.photos && local.photos.length > 0 && (!fbr.photos || fbr.photos.length === 0)) {
+            merged.push({ ...fbr, photos: local.photos });
+          } else {
+            merged.push(fbr);
+          }
+          seen.add(fbr.id);
+        });
+        // Add any local-only reports (not yet synced)
+        localReports.forEach(lr => {
+          if (!seen.has(lr.id)) merged.push(lr);
+        });
+        _saveReports(merged);
+      }
+      // Sync users
+      const fbUsers = await global.FB.getAllDocs(global.FB.COLLECTIONS.USERS, '_createdAt');
+      if (fbUsers.length > 0) {
+        const localUsers = getUsers();
+        const mergedUsers = [];
+        const seenU = new Set();
+        fbUsers.forEach(fbu => {
+          const local = localUsers.find(lu => lu.id === fbu.id || lu.email?.toLowerCase() === fbu.email?.toLowerCase());
+          mergedUsers.push({ ...(local || {}), ...fbu, token: fbu.id });
+          seenU.add(fbu.email?.toLowerCase());
+        });
+        localUsers.forEach(lu => {
+          if (!seenU.has(lu.email?.toLowerCase())) mergedUsers.push(lu);
+        });
+        _saveUsers(mergedUsers);
+      }
+      // Sync notifications
+      const fbNotifs = await global.FB.getAllDocs(global.FB.COLLECTIONS.NOTIFICATIONS, 'createdAt');
+      if (fbNotifs.length > 0) {
+        writeJSON(SK_NOTIFICATIONS, fbNotifs);
+      }
+      console.log('[CCRS] Firestore sync complete.');
+    } catch(e) {
+      console.error('[CCRS] Firestore sync failed, using localStorage:', e);
+    }
+  }
+
+  /* ── Seed admin user in Firebase if needed ─────────────────── */
+  async function fbSeedAdminIfNeeded() {
+    if (!_fbAvailable()) return;
+    try {
+      const adminUsers = await global.FB.queryDocs(global.FB.COLLECTIONS.USERS, 'role', '==', 'admin');
+      if (adminUsers.length === 0) {
+        // Create admin user in Firestore (auth user must be created manually or via console)
+        const localAdmin = getUsers().find(u => u.role === 'admin');
+        if (localAdmin) {
+          await global.FB.setDoc(global.FB.COLLECTIONS.USERS, localAdmin.id, {
+            ...localAdmin,
+            _createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          });
+          console.log('[CCRS] Admin user synced to Firestore.');
+        }
+      }
+    } catch(e) { console.error('[FB Seed]', e); }
+  }
+
   /* ── Public API (enhanced) ─────────────────────────────────── */
   global.storage = { 
     getReports, saveReport, updateReport, deleteReport, getUserStats, getUsers, saveUser, findUser, login, logout, getCurrentUser, isAuthenticated, isAdmin,
-    // New enhanced methods
+    // Enhanced methods
     saveReportEnhanced, getReportByTrackingCode, getNearbyReports,
     mergeReports, unmergeReport,
     markResolvedWithVerification, confirmResolution, reopenReport, processExpiredVerifications,
     getNotifications, createNotification, markNotificationRead, getUnreadCount,
     sendSMS, sendViber, sendNotificationByPreference, updateUserNotificationPref,
     getVisibleReports, formatResolutionStatus, generateTrackingCode,
+    // Firebase-backed methods (async)
+    fbRegister, fbLogin, fbLogout, fbGetCurrentUser, fbIsAuthenticated, fbIsAdmin,
+    fbSaveReport, fbUpdateReport, fbDeleteReport,
+    fbMergeReports, fbMarkResolved, fbConfirmResolution, fbReopenReport,
+    fbCreateNotification, fbInitialSync, fbSeedAdminIfNeeded,
   };
   global.CCRSUTILS = { CATEGORIES, LOCATIONS, getCountries, getProvinces, getCities, getBarangays, getCoordinates, formatDate, formatDateFull, formatStatus, validateReportForm, createPhotoPreview, showNotification, redirectIfNotAuth, escapeHtml, animateCounter, reverseGeocode, formatResolutionStatus, haversineDistance };
   global.CCRSUPTILS = global.CCRSUTILS; // legacy alias

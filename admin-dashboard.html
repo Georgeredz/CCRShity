@@ -739,6 +739,11 @@
 </div>
 
 <!-- ── SCRIPTS ──────────────────────────────────────────────────── -->
+<!-- Firebase SDK (compat for vanilla JS) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
 <script src="ccrs-core.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
@@ -916,10 +921,11 @@ document.addEventListener('DOMContentLoaded', function () {
       document.getElementById('verificationModal').classList.add('open');
       return;
     }
-    window.storage.updateReport(id, { status });
-    loadReports();
-    refreshStats();
-    refreshMapMarkers();
+    if (window.storage.fbUpdateReport) {
+      window.storage.fbUpdateReport(id, { status }).then(() => { loadReports(); refreshStats(); refreshMapMarkers(); });
+    } else {
+      window.storage.updateReport(id, { status }); loadReports(); refreshStats(); refreshMapMarkers();
+    }
     window.CCRSUTILS.showNotification('Status updated successfully.', 'success');
   };
 
@@ -928,10 +934,14 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('verificationModal').classList.remove('open');
   };
 
-  document.getElementById('confirmResolveBtn').addEventListener('click', function () {
+  document.getElementById('confirmResolveBtn').addEventListener('click', async function () {
     if (!pendingResolveId) return;
     const admin = window.storage.getCurrentUser();
-    window.storage.markResolvedWithVerification(pendingResolveId, admin?.id);
+    if (window.storage.fbMarkResolved) {
+      await window.storage.fbMarkResolved(pendingResolveId, admin?.id);
+    } else {
+      window.storage.markResolvedWithVerification(pendingResolveId, admin?.id);
+    }
     closeVerificationModal();
     loadReports();
     refreshStats();
@@ -1035,10 +1045,14 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  document.getElementById('confirmMergeBtn').addEventListener('click', function () {
+  document.getElementById('confirmMergeBtn').addEventListener('click', async function () {
     const primaryId = document.getElementById('mergePrimarySelect').value;
     if (!primaryId || mergeSelectedSources.length === 0) return;
-    window.storage.mergeReports(primaryId, mergeSelectedSources);
+    if (window.storage.fbMergeReports) {
+      await window.storage.fbMergeReports(primaryId, mergeSelectedSources);
+    } else {
+      window.storage.mergeReports(primaryId, mergeSelectedSources);
+    }
     closeMergeModal();
     loadReports();
     refreshStats();
@@ -1083,13 +1097,17 @@ document.addEventListener('DOMContentLoaded', function () {
     pendingDeleteId = null;
     document.getElementById('deleteModal').classList.remove('open');
   };
-  document.getElementById('confirmDeleteBtn').addEventListener('click', function () {
+  document.getElementById('confirmDeleteBtn').addEventListener('click', async function () {
     if (!pendingDeleteId) return;
-    window.storage.deleteReport(pendingDeleteId);
+    if (window.storage.fbDeleteReport) {
+      await window.storage.fbDeleteReport(pendingDeleteId);
+    } else {
+      window.storage.deleteReport(pendingDeleteId);
+    }
     closeDeleteModal();
     loadReports();
     refreshStats();
-    refreshMapMarkers(); // Refresh map when report is deleted
+    refreshMapMarkers();
     window.CCRSUTILS.showNotification('Report deleted.', 'success');
   });
 
@@ -1469,12 +1487,20 @@ document.addEventListener('DOMContentLoaded', function () {
     `;
   }
 
-  // Process any expired verification windows
-  window.storage.processExpiredVerifications();
-
-  refreshStats();
-  loadReports();
-  refreshNotifBadge();
+  // Firebase initial sync + process expired verifications
+  if (window.storage.fbInitialSync) {
+    window.storage.fbInitialSync().then(() => {
+      window.storage.processExpiredVerifications();
+      refreshStats();
+      loadReports();
+      refreshNotifBadge();
+    });
+  } else {
+    window.storage.processExpiredVerifications();
+    refreshStats();
+    loadReports();
+    refreshNotifBadge();
+  }
 
   // Initialize map after data loads
   setTimeout(() => {

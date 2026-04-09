@@ -206,6 +206,11 @@
   </div>
 </div>
 
+<!-- Firebase SDK (compat for vanilla JS) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
 <script src="ccrs-core.js"></script>
 <script>
   // Fill demo credentials
@@ -267,16 +272,37 @@
 
       await new Promise(r => setTimeout(r, 400));
 
-      const user = window.storage.login(email, pw);
-      const redirect = new URLSearchParams(window.location.search).get('redirect');
-      if (user) {
-        window.CCRSUTILS.showNotification(`Welcome back! Redirecting…`, 'success');
-        const dest = redirect || (user.role === 'admin' ? 'admin-dashboard.html' : 'resident-dashboard.html');
-        setTimeout(() => { window.location.href = dest; }, 900);
-      } else {
+      try {
+        // Try Firebase Auth first, fall back to localStorage
+        let user;
+        if (window.storage.fbLogin) {
+          try {
+            user = await window.storage.fbLogin(email, pw);
+          } catch(fbErr) {
+            console.log('[Login] Firebase auth failed, trying local:', fbErr.message);
+            user = window.storage.login(email, pw);
+          }
+        } else {
+          user = window.storage.login(email, pw);
+        }
+        
+        const redirect = new URLSearchParams(window.location.search).get('redirect');
+        if (user) {
+          // Sync data from Firestore after login
+          if (window.storage.fbInitialSync) window.storage.fbInitialSync();
+          window.CCRSUTILS.showNotification('Welcome back! Redirecting...', 'success');
+          const dest = redirect || (user.role === 'admin' ? 'admin-dashboard.html' : 'resident-dashboard.html');
+          setTimeout(() => { window.location.href = dest; }, 900);
+        } else {
+          throw new Error('Invalid credentials');
+        }
+      } catch(loginErr) {
         btn.disabled = false;
         btn.innerHTML = `<svg style="width:1rem;height:1rem;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> Log In`;
-        window.CCRSUTILS.showNotification('Invalid email or password. Please try again.', 'error');
+        const msg = loginErr.code === 'auth/wrong-password' || loginErr.code === 'auth/user-not-found' || loginErr.code === 'auth/invalid-credential'
+          ? 'Invalid email or password. Please try again.'
+          : (loginErr.message || 'Invalid email or password. Please try again.');
+        window.CCRSUTILS.showNotification(msg, 'error');
         document.getElementById('password').value = '';
         document.getElementById('password').focus();
       }

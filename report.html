@@ -509,6 +509,11 @@
   </div>
 </div>
 
+<!-- Firebase SDK (compat for vanilla JS) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
 <script src="ccrs-core.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
@@ -866,8 +871,8 @@ document.addEventListener('DOMContentLoaded', () => {
       try { data.photos.push(await window.CCRSUTILS.createPhotoPreview(file)); } catch(e) {}
     }
 
-    // Use enhanced save
-    const report = window.storage.saveReportEnhanced(data);
+    // Use Firebase-backed save if available, otherwise enhanced local save
+    const report = window.storage.fbSaveReport ? await window.storage.fbSaveReport(data) : window.storage.saveReportEnhanced(data);
     if (report) {
       if (isAnonymous && report.trackingCode) {
         // Show tracking code for anonymous reports
